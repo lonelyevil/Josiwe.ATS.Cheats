@@ -9,7 +9,7 @@ The `.dll` file created by this mod (`Josiwe.ATS.Cheats.dll` by default) can the
 inside the game directory. You might have to make this directory yourself, or run the game once to have it made automatically.
 
 You can use one of the `.json` files which are preset changes. Put these in the same directory and rename them to `Josiwe.ATS.Cheats.Config.json`.
-If you do not have one and you're using thunderstore then a default one will be made and you can use thunderstore instead.
+If you do not have one, the mod uses your BepInEx/Thunderstore configuration instead.
 
 We've also added example configs to fit a few playstyles! Feel free to replace single lines, or whole sections in the main config file:
 
@@ -18,6 +18,12 @@ We've also added example configs to fit a few playstyles! Feel free to replace s
 - If you're one of those people looking for a _real_ challenge, take a crack at the `GluttonForPunishment.Config.json` =)
 
 Feel free to mix and match them all, there's a million ways to have a blast with this game.
+
+# ConfigurationManager panel
+
+With [BepInEx.ConfigurationManager](https://github.com/BepInEx/BepInEx.ConfigurationManager) installed, press **F1** after the game starts to edit every cheat setting. Changes update the values used by the mod and persist through BepInEx; when `Josiwe.ATS.Cheats.Config.json` is present, panel changes are also written back to that file.
+
+The **Presets** section contains an **Apply preset** dropdown with **Explorer**, **Vanilla**, and **Glutton for Punishment**. Selecting one applies the full preset immediately and resets the dropdown so it can be used again. Settings that only affect embarking, game start, or other one-time game hooks still take effect at their usual time.
 
 # Development setup
 

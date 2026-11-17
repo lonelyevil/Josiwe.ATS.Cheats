@@ -1,5 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text;
 using BepInEx.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Josiwe.ATS.Cheats
 {
@@ -70,11 +76,18 @@ namespace Josiwe.ATS.Cheats
         #endregion
 
         private string m_CurrentSection = null;
-        private bool m_LoadedFromJSON = true;
+        private bool m_LoadedFromJSON = false;
+        private string m_JSONPath = null;
 
-        public void LoadedFromJSON()
+        // Every setting bound through ReadValues(), keyed by its config/field name.
+        private readonly Dictionary<string, ConfigEntryBase> m_Entries = new Dictionary<string, ConfigEntryBase>();
+        private bool m_SuppressSettingChanged = false;
+        private bool m_SettingChangedSubscribed = false;
+
+        public void LoadedFromJSON(string jsonPath)
         {
             m_LoadedFromJSON = true;
+            m_JSONPath = jsonPath;
         }
         
         public void ReadValues()
@@ -126,6 +139,58 @@ namespace Josiwe.ATS.Cheats
                 // Save the changes to BepInEx if we loaded from JSON
                 Plugin.Instance.Config.Save();
             }
+
+            SubscribeSettingChanged();
+        }
+
+        /// <summary>
+        /// Copies every bound setting from a deserialized preset into this config and its BepInEx entries.
+        /// </summary>
+        public void ApplyPreset(CheatConfig preset)
+        {
+            if (preset == null)
+                return;
+
+            bool previousSuppress = m_SuppressSettingChanged;
+            bool previousSaveOnConfigSet = Plugin.Instance.Config.SaveOnConfigSet;
+
+            m_SuppressSettingChanged = true;
+            try
+            {
+                // Avoid one file write per entry while bulk-applying the preset.
+                Plugin.Instance.Config.SaveOnConfigSet = false;
+
+                foreach (KeyValuePair<string, ConfigEntryBase> pair in m_Entries)
+                {
+                    FieldInfo field = GetSettingField(pair.Key);
+                    if (field == null)
+                        continue;
+
+                    object value = field.GetValue(preset);
+                    if (value == null)
+                        continue;
+
+                    field.SetValue(this, value);
+                    pair.Value.BoxedValue = value;
+                }
+            }
+            finally
+            {
+                Plugin.Instance.Config.SaveOnConfigSet = previousSaveOnConfigSet;
+                m_SuppressSettingChanged = previousSuppress;
+
+                // Persist the whole preset once instead of once per setting.
+                try
+                {
+                    Plugin.Instance.Config.Save();
+                }
+                catch (Exception ex)
+                {
+                    Log($"Failed saving BepInEx config after applying a preset: {ex}");
+                }
+
+                WriteJSON();
+            }
         }
 
         private void Section(string seasonRewards)
@@ -136,6 +201,8 @@ namespace Josiwe.ATS.Cheats
         private void Init<T>(ref T entry, string key, T defaultValue, string description)
         {
             ConfigEntry<T> bind = Bind(m_CurrentSection, key, defaultValue, description); // Get the entry from BepInEx configs
+            m_Entries[key] = bind;
+
             if (m_LoadedFromJSON)
             {
                 // Set BepInEx value with JSON
@@ -151,6 +218,71 @@ namespace Josiwe.ATS.Cheats
         private ConfigEntry<T> Bind<T>(string section, string key, T defaultValue, string description)
         {
             return Plugin.Instance.Config.Bind(section, key, defaultValue, new ConfigDescription(description, null, Array.Empty<object>()));
+        }
+
+        private void SubscribeSettingChanged()
+        {
+            if (m_SettingChangedSubscribed)
+                return;
+
+            Plugin.Instance.Config.SettingChanged += OnSettingChanged;
+            m_SettingChangedSubscribed = true;
+        }
+
+        // Keeps the public fields used by the Harmony patches in sync with edits made in the F1 window.
+        private void OnSettingChanged(object sender, SettingChangedEventArgs e)
+        {
+            if (m_SuppressSettingChanged || e == null || e.ChangedSetting == null)
+                return;
+
+            foreach (KeyValuePair<string, ConfigEntryBase> pair in m_Entries)
+            {
+                if (!ReferenceEquals(pair.Value, e.ChangedSetting))
+                    continue;
+
+                FieldInfo field = GetSettingField(pair.Key);
+                if (field != null)
+                    field.SetValue(this, pair.Value.BoxedValue);
+
+                // Panel edits must survive a restart when the main JSON was loaded.
+                WriteJSON();
+                return;
+            }
+        }
+
+        // Replaces only the known setting values, keeping headings, descriptions and unknown properties intact.
+        private void WriteJSON()
+        {
+            if (!m_LoadedFromJSON || string.IsNullOrEmpty(m_JSONPath))
+                return;
+
+            try
+            {
+                JObject root = null;
+                if (File.Exists(m_JSONPath))
+                    root = JObject.Parse(File.ReadAllText(m_JSONPath));
+                if (root == null)
+                    root = new JObject();
+
+                foreach (KeyValuePair<string, ConfigEntryBase> pair in m_Entries)
+                    root[pair.Key] = new JValue(pair.Value.BoxedValue);
+
+                File.WriteAllText(m_JSONPath, root.ToString(Formatting.Indented), new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                Log($"Failed writing {Path.GetFileName(m_JSONPath)}: {ex.Message}");
+            }
+        }
+
+        private static FieldInfo GetSettingField(string name)
+        {
+            return typeof(CheatConfig).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+        }
+
+        private static void Log(string message)
+        {
+            Plugin.WriteLog(message);
         }
     }
 }

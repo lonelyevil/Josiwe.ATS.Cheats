@@ -21,7 +21,7 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 
 - The game DLLs under `Against the Storm_Data\Managed` are mandatory compile references; there are no stubs.
 - Every successful build runs `Deploy` and copies the output into `$(BepInExPath)\plugins\Joswie`. Keep `BepInExPath` pointed at a scratch directory for compile-only verification so the live Thunderstore profile is not modified.
-- Deployment copies only build output, not the root preset JSON files. For in-game testing, copy a preset beside the deployed DLL and rename it to `Josiwe.ATS.Cheats.Config.json`.
+- The three alternate preset JSONs are copied to build output and deployed beside the DLL. The main `Josiwe.ATS.Cheats.Config.json` is not auto-deployed; copy and rename a preset manually only when testing the JSON-first workflow.
 - There are no test projects or CI workflows; `dotnet test` is not a meaningful check. Verify code changes by compiling, then testing with BepInEx 5.x in the game when behavior matters.
 - `PluginInfo` is generated under `obj` from the csproj. Do not edit generated files; change `<Version>` in `Josiwe.ATS.Cheats.csproj`.
 
@@ -29,8 +29,9 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 
 - Adding a setting requires a `CheatConfig` field, its `Init(...)` call in `ReadValues()`, the same key in all four root `*.Config.json` presets, and README documentation.
 - Treat `CheatConfig.cs` as the source of truth for keys. In particular, the real key is `ZoomMultiplier` (README's `ZoomLimitMultiplier` is stale), and the shipped typo `ReputationMutiplier` must not be renamed without a compatibility migration.
-- Despite the fallback log/comments, `m_LoadedFromJSON` currently starts as `true` and is never set to `false`; consequently the no-JSON path writes field values into BepInEx rather than reading existing BepInEx values. Preserve this behavior unless a fix is explicitly requested.
-- JSON heading and `*_Description` properties are inert documentation ignored by deserialization, not missing bindings.
+- BepInEx entries are the live backing store for `CheatConfig` fields through `Config.SettingChanged`. Panel edits also update the main JSON when one was loaded; without JSON, the BepInEx `.cfg` is authoritative.
+- The F1 preset selector is a separate `ConfigEntry<string>` with an `AcceptableValueList<string>`, not a `CheatConfig` field. It applies a whole preset and resets to its sentinel; preserve the reentrancy guard and startup reset.
+- JSON heading and `*_Description` properties are inert documentation ignored by deserialization. Panel-driven JSON writes must preserve these unknown properties and avoid a BOM.
 - Thunderstore has previously rejected a BOM in `CHANGELOG.md` (`7cb1e0f`); keep packaged text files UTF-8 without a BOM.
 
 ## Release identity

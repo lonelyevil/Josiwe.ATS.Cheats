@@ -1,4 +1,5 @@
 using BepInEx;
+using BepInEx.Configuration;
 using Eremite;
 using Eremite.Controller;
 using Eremite.Model;
@@ -23,6 +24,17 @@ namespace Josiwe.ATS.Cheats
         private Harmony harmony;
         public static Plugin Instance;
         private static CheatConfig _configuration = null;
+
+        // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
+        private const string PresetSentinel = "Load preset...";
+        private static readonly Dictionary<string, string> PresetFiles = new Dictionary<string, string>
+        {
+            { "Explorer", "Explorer.Config.json" },
+            { "Vanilla", "Vanilla.Config.json" },
+            { "Glutton for Punishment", "GluttonForPunishment.Config.json" },
+        };
+        private static ConfigEntry<string> _presetSelector = null;
+        private static bool _applyingPreset = false;
 
         #region Camera Controller Mods
         // Increases the zoom limit
@@ -730,6 +742,7 @@ namespace Josiwe.ATS.Cheats
         {
             Instance = this;
             _configuration = GetCheatConfig();
+            SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
         }
@@ -749,7 +762,7 @@ namespace Josiwe.ATS.Cheats
                 {
                     WriteLog($"Loading {fileName}");
                     config = JsonConvert.DeserializeObject<CheatConfig>(File.ReadAllText(basePath));
-                    config.LoadedFromJSON();
+                    config.LoadedFromJSON(basePath);
                 }
                 catch (Exception ex)
                 {
@@ -768,7 +781,97 @@ namespace Josiwe.ATS.Cheats
             return config;
         }
 
-        private static void WriteLog(string message)
+        // Registers the F1 preset dropdown after the main config exists and before Harmony patching.
+        private void SetupPresetSelector()
+        {
+            _presetSelector = Config.Bind(
+                "Presets",
+                "Apply preset",
+                PresetSentinel,
+                new ConfigDescription(
+                    "Loads the selected preset JSON shipped beside the plugin and applies it to every cheat setting. The selector resets afterwards so the same preset can be applied again.",
+                    new AcceptableValueList<string>(PresetSentinel, "Explorer", "Vanilla", "Glutton for Punishment")));
+
+            // The .cfg may still hold a previous selection; always start from the sentinel so nothing auto-applies.
+            _applyingPreset = true;
+            try
+            {
+                if (_presetSelector.Value != PresetSentinel)
+                    _presetSelector.Value = PresetSentinel;
+            }
+            finally
+            {
+                _applyingPreset = false;
+            }
+
+            _presetSelector.SettingChanged += OnPresetSelected;
+        }
+
+        private static void OnPresetSelected(object sender, EventArgs e)
+        {
+            // Ignore our own reset to the sentinel, and never act on the sentinel itself.
+            if (_applyingPreset || _presetSelector == null)
+                return;
+
+            string selection = _presetSelector.Value;
+            if (string.IsNullOrEmpty(selection) || selection == PresetSentinel)
+                return;
+
+            _applyingPreset = true;
+            try
+            {
+                if (!PresetFiles.TryGetValue(selection, out string fileName))
+                {
+                    WriteLog($"Unknown preset selection: {selection}");
+                    return;
+                }
+
+                CheatConfig preset = LoadPreset(fileName);
+                if (preset == null || _configuration == null)
+                    return;
+
+                _configuration.ApplyPreset(preset);
+                WriteLog($"Applied preset '{selection}' from {fileName}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed applying preset '{selection}': {ex}");
+            }
+            finally
+            {
+                // Reset so selecting the same preset again fires SettingChanged once more.
+                try
+                {
+                    _presetSelector.Value = PresetSentinel;
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"Failed resetting the preset selector: {ex.Message}");
+                }
+
+                _applyingPreset = false;
+            }
+        }
+
+        private static CheatConfig LoadPreset(string fileName)
+        {
+            string directory = Path.GetDirectoryName(Instance.Info.Location);
+            string path = Path.Combine(directory, fileName);
+            if (!File.Exists(path))
+            {
+                WriteLog($"Preset file not found: {path}");
+                return null;
+            }
+
+            WriteLog($"Loading preset {fileName}");
+            CheatConfig preset = JsonConvert.DeserializeObject<CheatConfig>(File.ReadAllText(path));
+            if (preset == null)
+                WriteLog($"Preset file {fileName} produced an empty configuration");
+
+            return preset;
+        }
+
+        internal static void WriteLog(string message)
         {
             Instance.Logger.LogInfo(message);
         }
