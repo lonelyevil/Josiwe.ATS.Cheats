@@ -460,7 +460,7 @@ namespace Josiwe.ATS.Cheats
                 || !_configuration.InfiniteCornerstoneRerolls)
                 return true; // run the original game method
 
-            Serviceable.StateService.Gameplay.cornerstonesRerollsLeft = 99;
+            Serviceable.StateService.Cornerstones.rerollsLeft = 99;
 
             return true; // now run the original method
         }
