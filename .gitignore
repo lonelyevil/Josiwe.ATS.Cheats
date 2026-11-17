@@ -13,6 +13,9 @@
 # Local machine paths (copy Local.props.example to Local.props)
 /Local.props
 
+# Local OpenCode MCP configuration
+/opencode.json
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
