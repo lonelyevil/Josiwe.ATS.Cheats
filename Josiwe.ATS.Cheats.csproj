@@ -1,17 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <AppDataLocalDir>$([System.Environment]::GetFolderPath(SpecialFolder.ApplicationData))</AppDataLocalDir>
         <TargetFramework>netstandard2.0</TargetFramework>
         <AssemblyName>Josiwe.ATS.Cheats</AssemblyName>
         <Description>Cheat Mod for Against The Storm - By Josiwe</Description>
         <Version>1.0.2</Version>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
-        <!--<StormPath>D:\\GOG\\Against the Storm</StormPath>-->
-        <StormPath>C:\Program Files (x86)\Steam\steamapps\common\Against the Storm</StormPath>
-        <BepInExPath>$(AppDataLocalDir)/Thunderstore Mod Manager/DataFolder/AgainstTheStorm/profiles/Default/BepInEx</BepInExPath>
     </PropertyGroup>
+
+    <!-- Machine-specific paths belong in the ignored Local.props file. -->
+    <Import Project="$(MSBuildThisFileDirectory)Local.props" Condition="Exists('$(MSBuildThisFileDirectory)Local.props')" />
 
     <ItemGroup>
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />

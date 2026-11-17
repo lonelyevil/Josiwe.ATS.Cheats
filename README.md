@@ -19,6 +19,10 @@ We've also added example configs to fit a few playstyles! Feel free to replace s
 
 Feel free to mix and match them all, there's a million ways to have a blast with this game.
 
+# Development setup
+
+Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.
+
 # Cheat Settings Data
 
 Here you'll find a detailed description of the type and effect of each setting in the config files, split by sections.

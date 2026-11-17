@@ -1,0 +1,7 @@
+<Project>
+  <!-- Copy this file to Local.props and replace both placeholders with local paths. -->
+  <PropertyGroup>
+    <StormPath>C:\path\to\Against the Storm</StormPath>
+    <BepInExPath>C:\path\to\BepInEx</BepInExPath>
+  </PropertyGroup>
+</Project>
