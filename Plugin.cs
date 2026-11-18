@@ -27,6 +27,7 @@ namespace Josiwe.ATS.Cheats
         private static CheatConfig _configuration = null;
         private static EffectsStateMultipliers _effectsStateMultipliers = null;
         private static ConfigEntry<int> _farmAreaRadius = null;
+        private static ConfigEntry<int> _houseExtraPlaces = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -626,6 +627,24 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region House Capacity Mods
+        // GetPlacesLeft() = GetHousingPlaces() - residents.Count. Extending the
+        // underlying capacity keeps total places, remaining places and previews consistent.
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetHouseCapacity), new Type[] { typeof(House) })]
+        [HarmonyPostfix]
+        private static void GetHouseCapacity_PostPatch(ref int __result)
+        {
+            __result = Mathf.Max(0, __result + (_houseExtraPlaces?.Value ?? 0));
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetHouseCapacity), new Type[] { typeof(HouseModel) })]
+        [HarmonyPostfix]
+        private static void GetHouseModelCapacity_PostPatch(ref int __result)
+        {
+            __result = Mathf.Max(0, __result + (_houseExtraPlaces?.Value ?? 0));
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -1018,6 +1037,7 @@ namespace Josiwe.ATS.Cheats
             _configuration = GetCheatConfig();
             _effectsStateMultipliers = new EffectsStateMultipliers(Config);
             SetupFarmAreaConfig();
+            SetupHouseConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1067,6 +1087,17 @@ namespace Josiwe.ATS.Cheats
                     "0 keeps the vanilla work area plus MetaPerks bonus. Values 1-10 override it with equal X/Y margins. The total area is the farm building size plus twice this radius; both the visible area and usable fields are recalculated.",
                     new AcceptableValueRange<int>(0, 10)));
             _farmAreaRadius.SettingChanged += delegate { RefreshFarmAreas(); };
+        }
+
+        private void SetupHouseConfig()
+        {
+            _houseExtraPlaces = Config.Bind(
+                "House",
+                "Extra places per house",
+                0,
+                new ConfigDescription(
+                    "Adds this many real housing places to every house. 0 preserves vanilla capacity. Total capacity, remaining places, move-in checks and building previews all use the increased value.",
+                    new AcceptableValueRange<int>(0, 20)));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.

@@ -33,6 +33,7 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 - The F1 preset selector is a separate `ConfigEntry<string>` with an `AcceptableValueList<string>`, not a `CheatConfig` field. It applies a whole preset and resets to its sentinel; preserve the reentrancy guard and startup reset.
 - `EffectsStateMultipliers.cs` owns 26 independent range entries (`0..10`, neutral `1`). Apply them at game read points only; writing these factors into `EffectsState` would persist them and can compound them on each save/load. The New Year patch may change the field only inside its original method and must restore it in a finalizer.
 - Patch `Farm.GetAreaSize()` for square farm-area overrides: it feeds `CalculateAreaRect`, `CacheFieldsInArea`, and `FarmPlanOverlay.WorkArea`. Radius `0` must preserve `model.workArea + MetaPerks`; positive values override both axes, and changes recalculate active farms.
+- For extra housing, patch both `EffectsService.GetHouseCapacity(House)` and `GetHouseCapacity(HouseModel)` rather than only `House.GetPlacesLeft()`. This keeps real capacity, remaining places, move-in checks and previews consistent; bonus `0` is neutral.
 - JSON heading and `*_Description` properties are inert documentation ignored by deserialization. Panel-driven JSON writes must preserve these unknown properties and avoid a BOM.
 - Thunderstore has previously rejected a BOM in `CHANGELOG.md` (`7cb1e0f`); keep packaged text files UTF-8 without a BOM.
 

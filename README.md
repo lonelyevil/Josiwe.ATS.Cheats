@@ -29,6 +29,8 @@ The **EffectsState Multipliers** section adds an independent slider and text box
 
 The **Farm** section contains **Square area radius** (`0–10`). The default `0` preserves the farm model's work area and MetaPerks bonus. Values `1–10` replace both axes with the same margin, updating the placement overlay, visible area, and actual usable-field cache together. Total dimensions are the farm building size plus twice the radius; active farms are recalculated when the setting changes.
 
+The **House** section contains **Extra places per house** (`0–20`). The default `0` preserves vanilla capacity. Positive values add real capacity to every house, consistently updating total places, remaining places, move-in checks, HUD values, and building previews.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.
