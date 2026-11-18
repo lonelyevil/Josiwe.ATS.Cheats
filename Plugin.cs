@@ -32,6 +32,7 @@ namespace Josiwe.ATS.Cheats
         private static ConfigEntry<int> _farmAreaRadius = null;
         private static ConfigEntry<int> _houseExtraPlaces = null;
         private static ConfigEntry<int> _newcomersExtraVillagers = null;
+        private static ConfigEntry<bool> _ignoreNegativeEffectHostility = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -801,6 +802,49 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Hostility Mods
+        // This method handles both applying and removing EffectsNegative points. Skip
+        // both signs so this source cannot change Hostility in either direction.
+        [HarmonyPatch(typeof(HostilityMonitor), "AddNegativeEffectHostility")]
+        [HarmonyPrefix]
+        private static bool AddNegativeEffectHostility_PrePatch()
+        {
+            return _ignoreNegativeEffectHostility == null
+                   || !_ignoreNegativeEffectHostility.Value;
+        }
+
+        [HarmonyPatch(typeof(HostilityMonitor), nameof(HostilityMonitor.SetUp))]
+        [HarmonyPostfix]
+        private static void HostilityMonitorSetup_PostPatch()
+        {
+            if (_ignoreNegativeEffectHostility != null && _ignoreNegativeEffectHostility.Value)
+                ClearNegativeEffectHostility();
+        }
+
+        private static void ClearNegativeEffectHostility()
+        {
+            try
+            {
+                HostilityState state = Serviceable.StateService?.Hostility;
+                if (state?.sources == null
+                    || !state.sources.TryGetValue(HostilitySource.EffectsNegative, out HostilitySourceState source))
+                    return;
+
+                int points = source.points;
+                if (points == 0)
+                    return;
+
+                source.points = 0;
+                Serviceable.HostilityService.ChangePoints(-points);
+                WriteLog($"Ignored negative-effect Hostility source; removed {points} existing points.");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed clearing negative-effect Hostility: {ex.Message}");
+            }
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -1196,6 +1240,7 @@ namespace Josiwe.ATS.Cheats
             SetupFarmAreaConfig();
             SetupHouseConfig();
             SetupNewcomersConfig();
+            SetupHostilityConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1267,6 +1312,21 @@ namespace Josiwe.ATS.Cheats
                 new ConfigDescription(
                     "Adds this many villagers to every newly generated newcomers group, on top of the original random base, year scaling and existing bonuses. 0 preserves vanilla amounts. Already waiting groups are unchanged.",
                     new AcceptableValueRange<int>(0, 20)));
+        }
+
+        private void SetupHostilityConfig()
+        {
+            _ignoreNegativeEffectHostility = Config.Bind(
+                "Hostility",
+                "Ignore negative effect hostility",
+                false,
+                new ConfigDescription(
+                    "Completely ignores HostilitySource.EffectsNegative. Adding or removing negative effects no longer changes Hostility, and any existing points from this source are cleared when enabled or when the Hostility monitor is set up. Other Hostility sources and positive effects are unaffected."));
+            _ignoreNegativeEffectHostility.SettingChanged += delegate
+            {
+                if (_ignoreNegativeEffectHostility.Value)
+                    ClearNegativeEffectHostility();
+            };
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.

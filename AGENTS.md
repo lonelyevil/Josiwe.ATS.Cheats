@@ -36,6 +36,7 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 - For extra housing, patch both `EffectsService.GetHouseCapacity(House)` and `GetHouseCapacity(HouseModel)` rather than only `House.GetPlacesLeft()`. This keeps real capacity, remaining places, move-in checks and previews consistent; bonus `0` is neutral.
 - Add newcomer headcount in the `NewcomersService.CalculateAmountOfNewcomers()` postfix. Its original result already includes random base, year scaling and `GetNewcomersBonus()`; the postfix preserves race assignment/goods generation and affects only newly generated groups.
 - `SeasonTraitCounts` exposes only Drizzle/Clearance/Storm Positive counts. In the `SeasonEffectsService.CreateSeasonalEffects` postfix, detach the optional baseline Static effect, derive each Season's regular total from the original result, then use `Negative = total - clamped Positive`; preserve the Static entry and never regenerate loaded saves.
+- `HostilityMonitor.AddNegativeEffectHostility` handles both applying and removing `EffectsNegative`. Full ignore mode must skip both signs, clear any existing source points on enable/`HostilityMonitor.SetUp`, and leave other Hostility sources and positive effects intact.
 - JSON heading and `*_Description` properties are inert documentation ignored by deserialization. Panel-driven JSON writes must preserve these unknown properties and avoid a BOM.
 - Thunderstore has previously rejected a BOM in `CHANGELOG.md` (`7cb1e0f`); keep packaged text files UTF-8 without a BOM.
 

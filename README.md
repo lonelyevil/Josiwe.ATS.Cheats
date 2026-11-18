@@ -35,6 +35,8 @@ The **Newcomers** section contains **Extra villagers per group** (`0–20`). The
 
 The **Season Traits** section contains **Enable per-season counts** and independent **Drizzle positive**, **Clearance positive**, and **Storm positive** values (`0–10`, default `1`). While enabled, the game first generates its normal baseline, then keeps each season's regular-trait total and calculates `negative = baseline total − configured positive` (positive is clamped to that total). Static traits are preserved separately and do not count toward this allocation. Actual counts remain limited by eligible unique candidates. Existing saves are not regenerated.
 
+The **Hostility** section contains **Ignore negative effect hostility** (default off). When enabled, `HostilitySource.EffectsNegative` is completely ignored: adding or removing negative effects cannot change Hostility. Existing points from this source are cleared on enable and when the Hostility monitor is set up; other Hostility sources and positive effects continue normally.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.
