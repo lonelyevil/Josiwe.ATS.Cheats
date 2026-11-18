@@ -5,7 +5,7 @@ A BepInEx 5 mod that adds configurable cheats, gameplay multipliers, presets, an
 ## Requirements
 
 - Against the Storm.
-- [BepInEx 5](https://github.com/BepInEx/BepInEx). The mod was tested with **BepInEx x64 5.4.22.0** on Windows 11.
+- [BepInEx 5](https://github.com/BepInEx/BepInEx). The mod was tested with **BepInEx x64 5.4.23.6** on Windows 10 21H2 IoT LTSC with Against the Storm 1.11.5R.
 - Optional but recommended: [BepInEx.ConfigurationManager](https://github.com/BepInEx/BepInEx.ConfigurationManager) for the in-game **F1** configuration window. Use the BepInEx 5 build.
 
 ## Installation
