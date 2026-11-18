@@ -31,6 +31,8 @@ The **Farm** section contains **Square area radius** (`0–10`). The default `0`
 
 The **House** section contains **Extra places per house** (`0–20`). The default `0` preserves vanilla capacity. Positive values add real capacity to every house, consistently updating total places, remaining places, move-in checks, HUD values, and building previews.
 
+The **Newcomers** section contains **Extra villagers per group** (`0–20`). The default `0` preserves vanilla amounts. Positive values are added after the original random base, year scaling, and existing newcomer bonuses; the extra villagers then use the normal race assignment and goods setup. This applies to newly generated groups and does not rewrite groups already waiting.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.

@@ -28,6 +28,7 @@ namespace Josiwe.ATS.Cheats
         private static EffectsStateMultipliers _effectsStateMultipliers = null;
         private static ConfigEntry<int> _farmAreaRadius = null;
         private static ConfigEntry<int> _houseExtraPlaces = null;
+        private static ConfigEntry<int> _newcomersExtraVillagers = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -645,6 +646,17 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Newcomers Amount Mods
+        // The original calculation includes the random base, year scaling and existing
+        // newcomers bonuses. Appending here keeps that logic and the normal race/goods setup.
+        [HarmonyPatch(typeof(NewcomersService), "CalculateAmountOfNewcomers")]
+        [HarmonyPostfix]
+        private static void CalculateAmountOfNewcomers_PostPatch(ref int __result)
+        {
+            __result = Mathf.Max(1, __result + (_newcomersExtraVillagers?.Value ?? 0));
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -1038,6 +1050,7 @@ namespace Josiwe.ATS.Cheats
             _effectsStateMultipliers = new EffectsStateMultipliers(Config);
             SetupFarmAreaConfig();
             SetupHouseConfig();
+            SetupNewcomersConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1097,6 +1110,17 @@ namespace Josiwe.ATS.Cheats
                 0,
                 new ConfigDescription(
                     "Adds this many real housing places to every house. 0 preserves vanilla capacity. Total capacity, remaining places, move-in checks and building previews all use the increased value.",
+                    new AcceptableValueRange<int>(0, 20)));
+        }
+
+        private void SetupNewcomersConfig()
+        {
+            _newcomersExtraVillagers = Config.Bind(
+                "Newcomers",
+                "Extra villagers per group",
+                0,
+                new ConfigDescription(
+                    "Adds this many villagers to every newly generated newcomers group, on top of the original random base, year scaling and existing bonuses. 0 preserves vanilla amounts. Already waiting groups are unchanged.",
                     new AcceptableValueRange<int>(0, 20)));
         }
 
