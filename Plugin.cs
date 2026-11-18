@@ -26,6 +26,7 @@ namespace Josiwe.ATS.Cheats
         public static Plugin Instance;
         private static CheatConfig _configuration = null;
         private static EffectsStateMultipliers _effectsStateMultipliers = null;
+        private static ConfigEntry<int> _farmAreaRadius = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -599,6 +600,32 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Farm Area Mods
+        // Both the visible AreaRect and the actual fieldsInArea cache use GetAreaSize().
+        // Returning equal X/Y margins keeps them and the placement overlay in sync.
+        [HarmonyPatch(typeof(Farm), nameof(Farm.GetAreaSize))]
+        [HarmonyPostfix]
+        private static void GetAreaSize_PostPatch(ref Vector2Int __result)
+        {
+            int radius = _farmAreaRadius?.Value ?? 0;
+            if (radius > 0)
+                __result = new Vector2Int(radius, radius);
+        }
+
+        private static void RefreshFarmAreas()
+        {
+            try
+            {
+                foreach (Farm farm in UnityEngine.Object.FindObjectsOfType<Farm>())
+                    farm.RecalculateArea();
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed refreshing farm areas: {ex.Message}");
+            }
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -990,6 +1017,7 @@ namespace Josiwe.ATS.Cheats
             Instance = this;
             _configuration = GetCheatConfig();
             _effectsStateMultipliers = new EffectsStateMultipliers(Config);
+            SetupFarmAreaConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1027,6 +1055,18 @@ namespace Josiwe.ATS.Cheats
             
             config.ReadValues();
             return config;
+        }
+
+        private void SetupFarmAreaConfig()
+        {
+            _farmAreaRadius = Config.Bind(
+                "Farm",
+                "Square area radius",
+                0,
+                new ConfigDescription(
+                    "0 keeps the vanilla work area plus MetaPerks bonus. Values 1-10 override it with equal X/Y margins. The total area is the farm building size plus twice this radius; both the visible area and usable fields are recalculated.",
+                    new AcceptableValueRange<int>(0, 10)));
+            _farmAreaRadius.SettingChanged += delegate { RefreshFarmAreas(); };
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.

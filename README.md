@@ -27,6 +27,8 @@ The **Presets** section contains an **Apply preset** dropdown with **Explorer**,
 
 The **EffectsState Multipliers** section adds an independent slider and text box for each of the 26 lower-level numeric multipliers. These range from **0 to 10** and default to **1**, which preserves the game's current value. They are applied when the game reads the value, so F1 changes take effect without directly modifying the saved `EffectsState`. Setting the integer New Year or Hunger multiplier to `0` suppresses its effect.
 
+The **Farm** section contains **Square area radius** (`0–10`). The default `0` preserves the farm model's work area and MetaPerks bonus. Values `1–10` replace both axes with the same margin, updating the placement overlay, visible area, and actual usable-field cache together. Total dimensions are the farm building size plus twice the radius; active farms are recalculated when the setting changes.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.
