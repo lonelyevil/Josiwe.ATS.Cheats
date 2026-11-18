@@ -18,7 +18,7 @@ namespace Josiwe.ATS.Cheats
 
         internal EffectsStateMultipliers(ConfigFile config)
         {
-            // Ranges default to 0..10 and ShowRangeAsPercent stays false, so
+            // Ranges default to 0..1000 and ShowRangeAsPercent stays false, so
             // ConfigurationManager draws a slider plus a text field for every entry.
             AddFloat(config, nameof(EffectsState.plantingSpeed));
             AddFloat(config, nameof(EffectsState.harvestingSpeed));
@@ -71,7 +71,7 @@ namespace Josiwe.ATS.Cheats
                 NeutralFloat,
                 new ConfigDescription(
                     $"Read-time multiplier for EffectsState.{fieldName}. 1 is neutral (vanilla behavior); 0 disables its contribution. Applied when the game reads the value, so save data and existing perks/effects are not modified.",
-                    new AcceptableValueRange<float>(0f, 10f)));
+                    new AcceptableValueRange<float>(0f, 1000f)));
         }
 
         private void AddInt(ConfigFile config, string fieldName)
@@ -82,7 +82,7 @@ namespace Josiwe.ATS.Cheats
                 NeutralInt,
                 new ConfigDescription(
                     $"Read-time multiplier for EffectsState.{fieldName}. 1 is neutral (vanilla behavior); 0 disables its contribution. Applied when the game reads the value, so save data and existing perks/effects are not modified.",
-                    new AcceptableValueRange<int>(0, 10)));
+                    new AcceptableValueRange<int>(0, 1000)));
         }
     }
 }

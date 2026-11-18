@@ -81,7 +81,7 @@ These settings modify ascension effect models while initial effects are being bu
 
 ## EffectsState multipliers
 
-All 26 controls are independent range entries from `0` to `10`, with `1` as neutral. Except for the temporary New Year guard described below, they multiply values at Harmony read points and do not write the configured factor into `EffectsState`.
+All 26 controls are independent range entries from `0` to `1000`, with `1` as neutral. Except for the temporary New Year guard described below, they multiply values at Harmony read points and do not write the configured factor into `EffectsState`.
 
 “Live” below means the next relevant calculation, not necessarily an immediate redraw or reconstruction of an object that already cached the result.
 
