@@ -4,6 +4,7 @@ using Eremite;
 using Eremite.Buildings;
 using Eremite.Controller;
 using Eremite.Model;
+using Eremite.Model.Configs;
 using Eremite.Model.Effects;
 using Eremite.Model.State;
 using Eremite.Services;
@@ -15,6 +16,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace Josiwe.ATS.Cheats
@@ -26,6 +28,7 @@ namespace Josiwe.ATS.Cheats
         public static Plugin Instance;
         private static CheatConfig _configuration = null;
         private static EffectsStateMultipliers _effectsStateMultipliers = null;
+        private static SeasonTraitCounts _seasonTraitCounts = null;
         private static ConfigEntry<int> _farmAreaRadius = null;
         private static ConfigEntry<int> _houseExtraPlaces = null;
         private static ConfigEntry<int> _newcomersExtraVillagers = null;
@@ -602,6 +605,147 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Seasonal Trait Mods
+        // The game builds one baseline list containing all three seasons plus an optional
+        // static trait at the end. When enabled, keep the baseline only to learn each
+        // season's normal total, then rebuild every season with the configured positive
+        // count and (total - positive) negative count. All three seasons stay in the list
+        // so the existing CreateStates/ShouldBeActive logic can activate by state.season.
+        // SetUpSeasonalEffects already skips generation for loaded saves via WasLoaded.
+        [HarmonyPatch(typeof(SeasonEffectsService), "CreateSeasonalEffects")]
+        [HarmonyPostfix]
+        private static void CreateSeasonalEffects_PostPatch(ref List<SeasonalEffect> __result)
+        {
+            if (_seasonTraitCounts == null || !_seasonTraitCounts.Enabled || __result == null)
+                return;
+
+            try
+            {
+                var biome = Serviceable.Biome;
+                SeasonsConfig seasons = biome?.seasons;
+                var settings = Serviceable.Settings;
+                var stateService = Serviceable.StateService;
+                if (seasons == null || settings == null || stateService?.Conditions == null)
+                    return;
+
+                // Every generator appends at most one static effect as the final entry.
+                // Detach it before counting regular traits: static is additional and is
+                // not part of the positive/negative total. The baseline object itself is
+                // preserved and appended unchanged at the end.
+                bool hasStatic = seasons.simpleStaticEffects != null
+                                 && seasons.simpleStaticEffects.Length != 0;
+                SeasonalEffect staticEffect = null;
+                int regularCount = __result.Count;
+                if (hasStatic && regularCount > 0)
+                {
+                    staticEffect = __result[regularCount - 1];
+                    regularCount--;
+                }
+
+                // Default total = the number of regular (non-static) baseline traits for
+                // that season. Look up the model to map an effect name back to its season;
+                // conditional effects live in a different cache than simple ones.
+                Dictionary<Season, int> defaultTotals = new Dictionary<Season, int>
+                {
+                    { Season.Drizzle, 0 },
+                    { Season.Clearance, 0 },
+                    { Season.Storm, 0 },
+                };
+
+                for (int i = 0; i < regularCount; i++)
+                {
+                    SeasonalEffect effect = __result[i];
+                    if (effect == null || string.IsNullOrEmpty(effect.name))
+                        continue;
+
+                    Season? season = null;
+                    if (effect.type == SeasonEffectType.Conditional)
+                    {
+                        ConditionalSeasonalEffectModel model =
+                            settings.ContainsConditionalSeasonalEffect(effect.name)
+                                ? settings.GetConditionalSeasonalEffect(effect.name)
+                                : null;
+                        if (model != null)
+                            season = model.season;
+                    }
+                    else
+                    {
+                        SimpleSeasonalEffectModel model =
+                            settings.ContainsSimpleSeasonalEffect(effect.name)
+                                ? settings.GetSimpleSeasonalEffect(effect.name)
+                                : null;
+                        if (model != null)
+                            season = model.season;
+                    }
+
+                    if (season.HasValue && defaultTotals.ContainsKey(season.Value))
+                        defaultTotals[season.Value]++;
+                }
+
+                var rng = new System.Random(stateService.Conditions.seed);
+                var result = new List<SeasonalEffect>();
+
+                foreach (Season season in new[] { Season.Drizzle, Season.Clearance, Season.Storm })
+                {
+                    int defaultTotal = defaultTotals[season];
+                    int requestedPositive = Mathf.Clamp(
+                        _seasonTraitCounts.GetPositive(season), 0, defaultTotal);
+                    int negative = defaultTotal - requestedPositive;
+
+                    // Rebuild both pools from the biome data for this season only. This
+                    // bypasses DifficultyModel counts and difficultyBudget deliberately:
+                    // the configured counts define the split, not the global budget.
+                    List<SeasonalEffect> positiveCandidates =
+                        BuildSeasonCandidates(seasons, season, true);
+                    List<SeasonalEffect> negativeCandidates =
+                        BuildSeasonCandidates(seasons, season, false);
+
+                    result.AddRange(positiveCandidates.ShuffleToNew(rng).Take(requestedPositive));
+                    result.AddRange(negativeCandidates.ShuffleToNew(rng).Take(negative));
+                }
+
+                if (staticEffect != null)
+                    result.Add(staticEffect);
+
+                __result = result;
+            }
+            catch (Exception ex)
+            {
+                // Leave the game's baseline __result untouched if anything unexpected
+                // happens instead of breaking seasonal effect generation.
+                WriteLog($"Failed applying per-season seasonal trait counts: {ex}");
+            }
+        }
+
+        private static List<SeasonalEffect> BuildSeasonCandidates(
+            SeasonsConfig seasons, Season season, bool positive)
+        {
+            var candidates = new List<SeasonalEffect>();
+
+            if (seasons.simpleEffects != null)
+            {
+                candidates.AddRange(seasons.simpleEffects
+                    .Where(x => x != null
+                                && x.season == season
+                                && x.effect != null
+                                && x.effect.CanBeDrawn()
+                                && x.effect.IsPositive == positive)
+                    .Select(x => new SeasonalEffect(x.Name, SeasonEffectType.SimplePerk)));
+            }
+
+            if (seasons.conditionalEffects != null)
+            {
+                candidates.AddRange(seasons.conditionalEffects
+                    .Where(x => x != null
+                                && x.season == season
+                                && x.isPositive == positive)
+                    .Select(x => new SeasonalEffect(x.Name, SeasonEffectType.Conditional)));
+            }
+
+            return candidates;
+        }
+        #endregion
+
         #region Farm Area Mods
         // Both the visible AreaRect and the actual fieldsInArea cache use GetAreaSize().
         // Returning equal X/Y margins keeps them and the placement overlay in sync.
@@ -1048,6 +1192,7 @@ namespace Josiwe.ATS.Cheats
             Instance = this;
             _configuration = GetCheatConfig();
             _effectsStateMultipliers = new EffectsStateMultipliers(Config);
+            _seasonTraitCounts = new SeasonTraitCounts(Config);
             SetupFarmAreaConfig();
             SetupHouseConfig();
             SetupNewcomersConfig();
