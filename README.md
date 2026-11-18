@@ -25,6 +25,8 @@ With [BepInEx.ConfigurationManager](https://github.com/BepInEx/BepInEx.Configura
 
 The **Presets** section contains an **Apply preset** dropdown with **Explorer**, **Vanilla**, and **Glutton for Punishment**. Selecting one applies the full preset immediately and resets the dropdown so it can be used again. Settings that only affect embarking, game start, or other one-time game hooks still take effect at their usual time.
 
+The **EffectsState Multipliers** section adds an independent slider and text box for each of the 26 lower-level numeric multipliers. These range from **0 to 10** and default to **1**, which preserves the game's current value. They are applied when the game reads the value, so F1 changes take effect without directly modifying the saved `EffectsState`. Setting the integer New Year or Hunger multiplier to `0` suppresses its effect.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.

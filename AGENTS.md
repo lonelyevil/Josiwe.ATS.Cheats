@@ -31,6 +31,7 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 - Treat `CheatConfig.cs` as the source of truth for keys. In particular, the real key is `ZoomMultiplier` (README's `ZoomLimitMultiplier` is stale), and the shipped typo `ReputationMutiplier` must not be renamed without a compatibility migration.
 - BepInEx entries are the live backing store for `CheatConfig` fields through `Config.SettingChanged`. Panel edits also update the main JSON when one was loaded; without JSON, the BepInEx `.cfg` is authoritative.
 - The F1 preset selector is a separate `ConfigEntry<string>` with an `AcceptableValueList<string>`, not a `CheatConfig` field. It applies a whole preset and resets to its sentinel; preserve the reentrancy guard and startup reset.
+- `EffectsStateMultipliers.cs` owns 26 independent range entries (`0..10`, neutral `1`). Apply them at game read points only; writing these factors into `EffectsState` would persist them and can compound them on each save/load. The New Year patch may change the field only inside its original method and must restore it in a finalizer.
 - JSON heading and `*_Description` properties are inert documentation ignored by deserialization. Panel-driven JSON writes must preserve these unknown properties and avoid a BOM.
 - Thunderstore has previously rejected a BOM in `CHANGELOG.md` (`7cb1e0f`); keep packaged text files UTF-8 without a BOM.
 

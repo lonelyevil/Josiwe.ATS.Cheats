@@ -1,6 +1,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using Eremite;
+using Eremite.Buildings;
 using Eremite.Controller;
 using Eremite.Model;
 using Eremite.Model.Effects;
@@ -24,6 +25,7 @@ namespace Josiwe.ATS.Cheats
         private Harmony harmony;
         public static Plugin Instance;
         private static CheatConfig _configuration = null;
+        private static EffectsStateMultipliers _effectsStateMultipliers = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -351,6 +353,252 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region EffectsState Read-Time Multipliers
+        // These patches multiply the values the game reads; they never write the configured
+        // factors into EffectsState, so saves and existing perks/effects stay untouched.
+        private const int NewYearNotApplied = int.MinValue;
+
+        [HarmonyPatch(typeof(Farm), nameof(Farm.GetPlantingRate))]
+        [HarmonyPostfix]
+        private static void GetPlantingRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.plantingSpeed), __result);
+        }
+
+        [HarmonyPatch(typeof(Farm), nameof(Farm.GetHarvestingRate))]
+        [HarmonyPostfix]
+        private static void GetHarvestingRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.harvestingSpeed), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetFuelRate))]
+        [HarmonyPostfix]
+        private static void GetFuelRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.fuelConsumptionSpeed), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetHearthSacraficeRate))]
+        [HarmonyPostfix]
+        private static void GetHearthSacraficeRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.hearthSacraficeTimeRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetConstructionRate))]
+        [HarmonyPostfix]
+        private static void GetConstructionRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.constructionSpeed), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetConstructionCostRate))]
+        [HarmonyPostfix]
+        private static void GetConstructionCostRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.constructionCost), __result);
+        }
+
+        // GetRelicsWorkingRate is private, so it can only be named by string.
+        [HarmonyPatch(typeof(EffectsService), "GetRelicsWorkingRate")]
+        [HarmonyPostfix]
+        private static void GetRelicsWorkingRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.relicsWorkingTimeRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetGrassAmount))]
+        [HarmonyPostfix]
+        private static void GetGrassAmount_PostPatch(ref int __result)
+        {
+            if (_effectsStateMultipliers == null)
+                return;
+
+            float factor = _effectsStateMultipliers.GetFloat(nameof(EffectsState.grassAmountRatio));
+            __result = Mathf.Max(0, Mathf.RoundToInt(__result * factor));
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetSeasonLenght))]
+        [HarmonyPostfix]
+        private static void GetSeasonLenght_PostPatch(Season season, ref float __result)
+        {
+            if (_effectsStateMultipliers == null)
+                return;
+
+            // The existing GetSeasonLenghtRate prefix already folds the CheatConfig season
+            // multipliers into the rate; this postfix applies the EffectsState multiplier
+            // exactly once on the final duration.
+            string fieldName = season switch
+            {
+                Season.Drizzle => nameof(EffectsState.drizzleLength),
+                Season.Clearance => nameof(EffectsState.clearanceleLength),
+                Season.Storm => nameof(EffectsState.stormLength),
+                _ => null,
+            };
+
+            if (fieldName != null)
+                __result *= _effectsStateMultipliers.GetFloat(fieldName);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetResolveToReputationRatio))]
+        [HarmonyPostfix]
+        private static void GetResolveToReputationRatio_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.resolveToReputationRatio), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetLeavingRate))]
+        [HarmonyPostfix]
+        private static void GetLeavingRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.leavingRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetNewcomersGoodsRate))]
+        [HarmonyPostfix]
+        private static void GetNewcomersGoodsRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.newcommersGoodsRate), __result);
+        }
+
+        // GetTraderSellPriceFor is overloaded, so the GoodModel signature is explicit.
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetTraderSellPriceFor), new Type[] { typeof(GoodModel) })]
+        [HarmonyPostfix]
+        private static void GetTraderSellPriceFor_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.traderGlobalSellPriceRate), __result);
+        }
+
+        // The trader sell price and the global traders ratio are independent paths, so each
+        // applies the factor once and neither calls the other.
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetTradersPricesRatio))]
+        [HarmonyPostfix]
+        private static void GetTradersPricesRatio_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.traderGlobalSellPriceRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetTradeRoutesSpeed))]
+        [HarmonyPostfix]
+        private static void GetTradeRoutesSpeed_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.tradeRoutesSpeed), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetVillagerBreakTime))]
+        [HarmonyPostfix]
+        private static void GetVillagerBreakTime_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.villagersBreakTimeRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetActorSpeed))]
+        [HarmonyPostfix]
+        private static void GetActorSpeed_PostPatch(bool onRoad, ref float __result)
+        {
+            if (_effectsStateMultipliers == null)
+                return;
+
+            __result *= _effectsStateMultipliers.GetFloat(nameof(EffectsState.globalSpeedFactor));
+            __result *= _effectsStateMultipliers.GetFloat(
+                onRoad ? nameof(EffectsState.roadsSpeedFactor) : nameof(EffectsState.offroadSpeedFacotr));
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetResolveNegativeChangePerSec))]
+        [HarmonyPostfix]
+        private static void GetResolveNegativeChangePerSec_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.resolveNegativeChangeRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetTraderIntervalRate))]
+        [HarmonyPostfix]
+        private static void GetTraderIntervalRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.tradersIntervalRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetNewcomersIntervalRate))]
+        [HarmonyPostfix]
+        private static void GetNewcomersIntervalRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.newcomersIntervalRate), __result);
+        }
+
+        // GetEnginesBlightRate is overloaded, so both signatures are explicit.
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetEnginesBlightRate), new Type[0])]
+        [HarmonyPostfix]
+        private static void GetEnginesBlightRate_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.enginesBlightRate), __result);
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetEnginesBlightRate), new Type[] { typeof(Workshop) })]
+        [HarmonyPostfix]
+        private static void GetEnginesBlightRateWorkshop_PostPatch(ref float __result)
+        {
+            __result = ScaleFloat(nameof(EffectsState.enginesBlightRate), __result);
+        }
+
+        // CheckForNewYear is private and loops i < EffectsState.newYearEffectMultiplayer,
+        // reading the field on every iteration. Temporarily scale the field for that call
+        // and always restore it in the finalizer so it never reaches a save.
+        [HarmonyPatch(typeof(ResolveService), nameof(ResolveService.CheckForNewYear))]
+        [HarmonyPrefix]
+        private static void CheckForNewYear_PrePatch(ref int __state)
+        {
+            __state = NewYearNotApplied;
+
+            if (_effectsStateMultipliers == null)
+                return;
+
+            EffectsState effects = Serviceable.StateService?.Effects;
+            if (effects == null)
+                return;
+
+            int factor = _effectsStateMultipliers.GetInt(nameof(EffectsState.newYearEffectMultiplayer));
+            if (factor == 1)
+                return;
+
+            __state = effects.newYearEffectMultiplayer;
+            effects.newYearEffectMultiplayer = __state * factor;
+        }
+
+        [HarmonyPatch(typeof(ResolveService), nameof(ResolveService.CheckForNewYear))]
+        [HarmonyFinalizer]
+        private static void CheckForNewYear_Finalizer(ref int __state)
+        {
+            if (__state == NewYearNotApplied)
+                return;
+
+            EffectsState effects = Serviceable.StateService?.Effects;
+            if (effects != null)
+                effects.newYearEffectMultiplayer = __state;
+        }
+
+        [HarmonyPatch(typeof(EffectsService), nameof(EffectsService.GetHungerMultiplier))]
+        [HarmonyPostfix]
+        private static void GetHungerMultiplier_PostPatch(ref int __result)
+        {
+            __result = Mathf.Max(0, ScaleInt(nameof(EffectsState.hungerMultiplier), __result));
+        }
+
+        private static float ScaleFloat(string fieldName, float value)
+        {
+            return _effectsStateMultipliers == null
+                       ? value
+                       : value * _effectsStateMultipliers.GetFloat(fieldName);
+        }
+
+        private static int ScaleInt(string fieldName, int value)
+        {
+            return _effectsStateMultipliers == null
+                       ? value
+                       : value * _effectsStateMultipliers.GetInt(fieldName);
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -666,9 +914,8 @@ namespace Josiwe.ATS.Cheats
         // TODO: Impatience gain when failing timed missions
         // Serviceable.ReputationService.AddReputationPoints(-0.99f, ReputationChangeSource.Other);
 
-        // cannot patch GetTraderSellPriceFor cause there's 2 of them with the same name and bepinx can't distinguish between them... =(
-        //public static float GetTraderSellPriceFor(string goodName, float amount)
-        //public static float GetTraderSellPriceFor(GoodModel good)
+        // GetTraderSellPriceFor has two overloads; the GoodModel one is patched with an
+        // explicit argument signature in the EffectsState Read-Time Multipliers region.
 
         // TODO: modify order rewards
         //[HarmonyPatch(typeof(OrdersService), nameof(OrdersService.AddRewards))]
@@ -742,6 +989,7 @@ namespace Josiwe.ATS.Cheats
         {
             Instance = this;
             _configuration = GetCheatConfig();
+            _effectsStateMultipliers = new EffectsStateMultipliers(Config);
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
