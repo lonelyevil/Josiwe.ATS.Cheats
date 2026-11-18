@@ -39,6 +39,7 @@ dotnet build .\Josiwe.ATS.Cheats.csproj `
 - `HostilityMonitor.AddNegativeEffectHostility` handles both applying and removing `EffectsNegative`. Full ignore mode must skip both signs, clear any existing source points on enable/`HostilityMonitor.SetUp`, and leave other Hostility sources and positive effects intact.
 - Current game code has no `GetMaxPreparationPoints`: total points are base (including difficulty penalty) plus `WorldEmbarkService.GetBonusPreparationPoints`. Reuse `BonusPreparationPoints` with its `0..100` range rather than adding a duplicate setting; ranged JSON/preset values must be clamped back into fields.
 - Apply embark-goods scaling in the `MetaPerksService.GetEmbarkGoodsAmount` postfix, after original MetaPerks bonuses. Both `CaravanGenerator.MultiplyByEmbarkFactor` and `EmbarkBonusesGenerator.CreatePickState` use this path; multiplier `1` is neutral.
+- For impatience-free manual trader refresh, replace `TradeService.PayForceArrivalPrice` only when enabled: skip `AddReputationPenalty` but still increment `forceArrivalUsages`, preserving forced arrival and future price progression. Do not globally suppress `AddReputationPenalty`.
 - JSON heading and `*_Description` properties are inert documentation ignored by deserialization. Panel-driven JSON writes must preserve these unknown properties and avoid a BOM.
 - Thunderstore has previously rejected a BOM in `CHANGELOG.md` (`7cb1e0f`); keep packaged text files UTF-8 without a BOM.
 

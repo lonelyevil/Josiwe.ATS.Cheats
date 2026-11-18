@@ -17,7 +17,7 @@ Changing a value in the F1 ConfigurationManager window updates the mod configura
 - Without a main JSON file, the BepInEx `.cfg` is authoritative.
 - If `Josiwe.ATS.Cheats.Config.json` exists beside the DLL, it is loaded at plugin startup and copied into BepInEx. Later panel edits are written back to that JSON while preserving unknown heading and description properties.
 - The **Presets → Apply preset** dropdown applies a complete preset to the original `CheatConfig` settings immediately. Each affected cheat still follows the activation timing listed below.
-- Presets do **not** include or reset the standalone **EffectsState Multipliers**, **Season Traits**, **Farm**, **House**, **Newcomers**, **Hostility**, or **Embark** settings. Those values remain unchanged when a preset is applied.
+- Presets do **not** include or reset the standalone **EffectsState Multipliers**, **Season Traits**, **Farm**, **House**, **Newcomers**, **Hostility**, **Embark**, or **Trader** settings. Those values remain unchanged when a preset is applied.
 - Applying a preset does not reroll current seasonal traits, regenerate existing rewards, rebuild farms, or rewrite already generated caravans.
 
 ## World map, camera, and embark settings
@@ -126,6 +126,7 @@ Setting a season-duration multiplier to `0` can request a zero-length season and
 | `Hostility / Ignore negative effect hostility` | Skips both application and removal of `HostilitySource.EffectsNegative`. Existing points from that source are cleared and total Hostility is synchronized. Other sources and positive effects continue normally. | **Live for future add/remove operations.** Existing points are cleared **when enabled** and **when the Hostility monitor is set up**, including game load/new game. |
 | `Season Traits / Enable per-season counts` (off by default), `Drizzle positive`, and `Storm negative` (`0–5`, default `1`) | Replaces only the Drizzle Positive and Storm Negative baseline categories with exact seeded selections. Counts are not clamped to baseline totals, so Drizzle Positive can increase up to five when candidates exist. Other regular effects and Static traits are preserved. | **New settlement seasonal-effect generation only.** Loaded saves skip regeneration, so changing this mid-settlement has no effect on that save. |
 | `Embark / Goods amount multiplier` | See the world map/embark table above. | **Next embark-goods generation**, not on reload within an existing settlement. |
+| `Trader / Manual refresh no impatience` | Prevents manual forced trader arrival from adding the Queen's impatience while preserving forced arrival, the usage counter, and future price progression. | **Next manual forced-arrival payment.** No global suppression of impatience from other sources. |
 
 ## Important interaction and persistence notes
 

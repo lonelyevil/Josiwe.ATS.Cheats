@@ -42,6 +42,7 @@ The following controls currently have distinct purposes:
 - `House / Extra places per house`
 - `Newcomers / Extra villagers per group`
 - `Embark / Goods amount multiplier`
+- `Trader / Manual refresh no impatience`
 - `Hostility / Ignore negative effect hostility`
 - The Drizzle Positive and Storm Negative allocations in `Season Traits`
 - `InfiniteCornerstoneRerolls`

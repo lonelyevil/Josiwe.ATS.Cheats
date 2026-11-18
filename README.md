@@ -54,7 +54,7 @@ Three presets are provided:
 
 With the preset JSON files beside the DLL, select **Presets → Apply preset** in the F1 panel. Selecting a preset applies it and resets the dropdown so the same preset can be selected again.
 
-Presets cover the original `CheatConfig` settings. They do not reset the standalone EffectsState, Season Traits, Farm, House, Newcomers, Hostility, or Embark controls.
+Presets cover the original `CheatConfig` settings. They do not reset the standalone EffectsState, Season Traits, Farm, House, Newcomers, Hostility, Embark, or Trader controls.
 
 As a manual alternative, copy one preset beside the DLL and rename it to `Josiwe.ATS.Cheats.Config.json`.
 

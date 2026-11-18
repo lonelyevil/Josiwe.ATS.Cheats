@@ -34,6 +34,7 @@ namespace Josiwe.ATS.Cheats
         private static ConfigEntry<int> _newcomersExtraVillagers = null;
         private static ConfigEntry<bool> _ignoreNegativeEffectHostility = null;
         private static ConfigEntry<int> _embarkGoodsMultiplier = null;
+        private static ConfigEntry<bool> _traderRefreshNoImpatience = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -892,6 +893,25 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Trader Mods
+        // ForceArrival() performs the actual refresh. PayForceArrivalPrice() then adds
+        // impatience and increments the usage counter. Keep the counter/cost progression,
+        // but omit only the reputation-penalty call when this cheat is enabled.
+        [HarmonyPatch(typeof(TradeService), nameof(TradeService.PayForceArrivalPrice))]
+        [HarmonyPrefix]
+        private static bool PayForceArrivalPrice_PrePatch(TradeService __instance)
+        {
+            if (_traderRefreshNoImpatience == null || !_traderRefreshNoImpatience.Value)
+                return true;
+
+            if (!__instance.GetCurrentMainVisit().forced)
+                return false;
+
+            __instance.State.forceArrivalUsages++;
+            return false;
+        }
+        #endregion
+
         #region Embark Goods Mods
         // Preserve the original MetaPerks calculation, then multiply its result. Both
         // caravan goods and embark-bonus goods pass through this method.
@@ -1301,6 +1321,7 @@ namespace Josiwe.ATS.Cheats
             SetupNewcomersConfig();
             SetupHostilityConfig();
             SetupEmbarkConfig();
+            SetupTraderConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1398,6 +1419,16 @@ namespace Josiwe.ATS.Cheats
                 new ConfigDescription(
                     "Multiplies the result of the original embark-goods calculation, including MetaPerks bonuses. 1 preserves vanilla amounts. Applies to both caravan goods and embark-bonus goods.",
                     new AcceptableValueRange<int>(1, 50)));
+        }
+
+        private void SetupTraderConfig()
+        {
+            _traderRefreshNoImpatience = Config.Bind(
+                "Trader",
+                "Manual refresh no impatience",
+                false,
+                new ConfigDescription(
+                    "Prevents manual forced trader arrival from increasing the Queen's impatience. The trader still arrives through the normal ForceArrival path, and the usage counter and future force-arrival prices still increase. Off restores the vanilla impatience penalty."));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.
