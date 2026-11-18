@@ -1,3 +1,8 @@
+# v1.0.3 - 18/11/26:
+- Added F1 ConfigurationManager integration and preset selection
+- Added configurable gameplay, farm, housing, newcomers, seasonal trait, hostility, and embark controls
+- Updated compatibility with current game state APIs
+
 # v1.02 - 25/04/24:
 - Added BepInEx support for the Configs to work with ThunderStore
 
