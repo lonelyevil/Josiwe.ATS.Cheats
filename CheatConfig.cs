@@ -95,7 +95,7 @@ namespace Josiwe.ATS.Cheats
             Section("World Rewards");
             Init(ref ZoomMultiplier, "ZoomMultiplier", 7.0f, "Increases how far the zoom goes");
             Init(ref AllRacesInWorldMap, "AllRacesInWorldMap", false, "");
-            Init(ref BonusPreparationPoints, "BonusPreparationPoints", 0, "Adds additional embark points"); 
+            Init(ref BonusPreparationPoints, "BonusPreparationPoints", 0, "Adds additional embark points", new AcceptableValueRange<int>(0, 100));
             
             Section("Season Rewards");
             Init(ref WildcardBlueprints, "WildcardBlueprints", false, "");
@@ -170,8 +170,8 @@ namespace Josiwe.ATS.Cheats
                     if (value == null)
                         continue;
 
-                    field.SetValue(this, value);
                     pair.Value.BoxedValue = value;
+                    field.SetValue(this, pair.Value.BoxedValue);
                 }
             }
             finally
@@ -198,15 +198,17 @@ namespace Josiwe.ATS.Cheats
             m_CurrentSection = seasonRewards;
         }
         
-        private void Init<T>(ref T entry, string key, T defaultValue, string description)
+        private void Init<T>(ref T entry, string key, T defaultValue, string description, AcceptableValueBase acceptableValues = null)
         {
-            ConfigEntry<T> bind = Bind(m_CurrentSection, key, defaultValue, description); // Get the entry from BepInEx configs
+            ConfigEntry<T> bind = Bind(m_CurrentSection, key, defaultValue, description, acceptableValues); // Get the entry from BepInEx configs
             m_Entries[key] = bind;
 
             if (m_LoadedFromJSON)
             {
                 // Set BepInEx value with JSON
                 bind.Value = entry;
+                if (acceptableValues != null)
+                    entry = bind.Value;
             }
             else
             {
@@ -215,9 +217,9 @@ namespace Josiwe.ATS.Cheats
             }
         }
         
-        private ConfigEntry<T> Bind<T>(string section, string key, T defaultValue, string description)
+        private ConfigEntry<T> Bind<T>(string section, string key, T defaultValue, string description, AcceptableValueBase acceptableValues = null)
         {
-            return Plugin.Instance.Config.Bind(section, key, defaultValue, new ConfigDescription(description, null, Array.Empty<object>()));
+            return Plugin.Instance.Config.Bind(section, key, defaultValue, new ConfigDescription(description, acceptableValues, Array.Empty<object>()));
         }
 
         private void SubscribeSettingChanged()

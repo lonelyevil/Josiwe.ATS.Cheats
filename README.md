@@ -37,6 +37,8 @@ The **Season Traits** section contains **Enable per-season counts** and independ
 
 The **Hostility** section contains **Ignore negative effect hostility** (default off). When enabled, `HostilitySource.EffectsNegative` is completely ignored: adding or removing negative effects cannot change Hostility. Existing points from this source are cleared on enable and when the Hostility monitor is set up; other Hostility sources and positive effects continue normally.
 
+The existing **World Rewards → BonusPreparationPoints** control now has a `0–100` slider and text box. It adds to the original bonus preparation points before the game calculates total preparation points. The **Embark → Goods amount multiplier** control (`1–50`, default `1`) multiplies the original result after MetaPerks bonuses and applies to both caravan goods and embark-bonus goods.
+
 # Development setup
 
 Copy `Local.props.example` to `Local.props`, then edit `Local.props` in Visual Studio and set `StormPath` to your Against the Storm install and `BepInExPath` to your target BepInEx directory. The project imports this file for both Visual Studio and `dotnet build`; `Local.props` is ignored by Git so machine-specific paths stay local.

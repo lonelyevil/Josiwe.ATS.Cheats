@@ -33,6 +33,7 @@ namespace Josiwe.ATS.Cheats
         private static ConfigEntry<int> _houseExtraPlaces = null;
         private static ConfigEntry<int> _newcomersExtraVillagers = null;
         private static ConfigEntry<bool> _ignoreNegativeEffectHostility = null;
+        private static ConfigEntry<int> _embarkGoodsMultiplier = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -845,6 +846,18 @@ namespace Josiwe.ATS.Cheats
         }
         #endregion
 
+        #region Embark Goods Mods
+        // Preserve the original MetaPerks calculation, then multiply its result. Both
+        // caravan goods and embark-bonus goods pass through this method.
+        [HarmonyPatch(typeof(MetaPerksService), nameof(MetaPerksService.GetEmbarkGoodsAmount))]
+        [HarmonyPostfix]
+        private static void GetEmbarkGoodsAmount_PostPatch(ref int __result)
+        {
+            int multiplier = _embarkGoodsMultiplier?.Value ?? 1;
+            __result = Mathf.RoundToInt((float)__result * multiplier);
+        }
+        #endregion
+
         #region Resolve Reputation Calculator Mods
         // Replaces the normal resolve logic
         [HarmonyPatch(typeof(ResolveReputationCalculator), nameof(ResolveReputationCalculator.AddReputation))]
@@ -1241,6 +1254,7 @@ namespace Josiwe.ATS.Cheats
             SetupHouseConfig();
             SetupNewcomersConfig();
             SetupHostilityConfig();
+            SetupEmbarkConfig();
             SetupPresetSelector();
             harmony = Harmony.CreateAndPatchAll(typeof(Plugin));
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} v{PluginInfo.PLUGIN_VERSION} is loaded!");
@@ -1327,6 +1341,17 @@ namespace Josiwe.ATS.Cheats
                 if (_ignoreNegativeEffectHostility.Value)
                     ClearNegativeEffectHostility();
             };
+        }
+
+        private void SetupEmbarkConfig()
+        {
+            _embarkGoodsMultiplier = Config.Bind(
+                "Embark",
+                "Goods amount multiplier",
+                1,
+                new ConfigDescription(
+                    "Multiplies the result of the original embark-goods calculation, including MetaPerks bonuses. 1 preserves vanilla amounts. Applies to both caravan goods and embark-bonus goods.",
+                    new AcceptableValueRange<int>(1, 50)));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.
