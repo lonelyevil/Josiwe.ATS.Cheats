@@ -608,11 +608,12 @@ namespace Josiwe.ATS.Cheats
         #endregion
 
         #region Seasonal Trait Mods
-        // The game builds one baseline list containing all three seasons plus an optional
-        // static trait at the end. When enabled, keep the baseline only to learn each
-        // season's normal total, then rebuild every season with the configured positive
-        // count and (total - positive) negative count. All three seasons stay in the list
-        // so the existing CreateStates/ShouldBeActive logic can activate by state.season.
+        // The game builds one baseline list containing every season's regular effects, plus
+        // an optional static trait appended last. When enabled, drop only the regular Drizzle
+        // positive and Storm negative entries, then draw those two categories fresh with the
+        // configured counts. Every other baseline effect (Clearance, and Drizzle/Storm effects
+        // of the other polarity) stays exactly as generated. The baseline is never used to
+        // derive totals or clamp counts, so Drizzle positive can exceed its vanilla count.
         // SetUpSeasonalEffects already skips generation for loaded saves via WasLoaded.
         [HarmonyPatch(typeof(SeasonEffectsService), "CreateSeasonalEffects")]
         [HarmonyPostfix]
@@ -631,9 +632,8 @@ namespace Josiwe.ATS.Cheats
                     return;
 
                 // Every generator appends at most one static effect as the final entry.
-                // Detach it before counting regular traits: static is additional and is
-                // not part of the positive/negative total. The baseline object itself is
-                // preserved and appended unchanged at the end.
+                // Detach it before processing: static is additional, never a target, and
+                // the baseline object itself is preserved and appended unchanged at the end.
                 bool hasStatic = seasons.simpleStaticEffects != null
                                  && seasons.simpleStaticEffects.Length != 0;
                 SeasonalEffect staticEffect = null;
@@ -644,78 +644,124 @@ namespace Josiwe.ATS.Cheats
                     regularCount--;
                 }
 
-                // Default total = the number of regular (non-static) baseline traits for
-                // that season. Look up the model to map an effect name back to its season;
-                // conditional effects live in a different cache than simple ones.
-                Dictionary<Season, int> defaultTotals = new Dictionary<Season, int>
-                {
-                    { Season.Drizzle, 0 },
-                    { Season.Clearance, 0 },
-                    { Season.Storm, 0 },
-                };
-
+                // Keep every regular baseline effect except the two target categories.
+                // Conditional effects live in a different cache than simple ones.
+                var retained = new List<SeasonalEffect>();
+                var reservedNames = new HashSet<string>();
                 for (int i = 0; i < regularCount; i++)
                 {
                     SeasonalEffect effect = __result[i];
-                    if (effect == null || string.IsNullOrEmpty(effect.name))
+
+                    // Map the effect name back to its model to learn season and polarity.
+                    // Unknown models are treated as non-target and kept untouched.
+                    bool replace = false;
+                    if (effect != null && !string.IsNullOrEmpty(effect.name))
+                    {
+                        Season effectSeason = Season.Drizzle;
+                        bool effectIsPositive = false;
+                        bool known = false;
+
+                        if (effect.type == SeasonEffectType.Conditional)
+                        {
+                            if (settings.ContainsConditionalSeasonalEffect(effect.name))
+                            {
+                                ConditionalSeasonalEffectModel model =
+                                    settings.GetConditionalSeasonalEffect(effect.name);
+                                if (model != null)
+                                {
+                                    effectSeason = model.season;
+                                    effectIsPositive = model.isPositive;
+                                    known = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (settings.ContainsSimpleSeasonalEffect(effect.name))
+                            {
+                                SimpleSeasonalEffectModel model =
+                                    settings.GetSimpleSeasonalEffect(effect.name);
+                                if (model != null && model.effect != null)
+                                {
+                                    effectSeason = model.season;
+                                    effectIsPositive = model.effect.IsPositive;
+                                    known = true;
+                                }
+                            }
+                        }
+
+                        replace = known
+                                  && ((effectSeason == Season.Drizzle && effectIsPositive)
+                                      || (effectSeason == Season.Storm && !effectIsPositive));
+                    }
+
+                    if (replace)
                         continue;
 
-                    Season? season = null;
-                    if (effect.type == SeasonEffectType.Conditional)
-                    {
-                        ConditionalSeasonalEffectModel model =
-                            settings.ContainsConditionalSeasonalEffect(effect.name)
-                                ? settings.GetConditionalSeasonalEffect(effect.name)
-                                : null;
-                        if (model != null)
-                            season = model.season;
-                    }
-                    else
-                    {
-                        SimpleSeasonalEffectModel model =
-                            settings.ContainsSimpleSeasonalEffect(effect.name)
-                                ? settings.GetSimpleSeasonalEffect(effect.name)
-                                : null;
-                        if (model != null)
-                            season = model.season;
-                    }
-
-                    if (season.HasValue && defaultTotals.ContainsKey(season.Value))
-                        defaultTotals[season.Value]++;
+                    retained.Add(effect);
+                    if (effect != null && !string.IsNullOrEmpty(effect.name))
+                        reservedNames.Add(effect.name);
                 }
+
+                if (staticEffect != null && !string.IsNullOrEmpty(staticEffect.name))
+                    reservedNames.Add(staticEffect.name);
 
                 var rng = new System.Random(stateService.Conditions.seed);
-                var result = new List<SeasonalEffect>();
 
-                foreach (Season season in new[] { Season.Drizzle, Season.Clearance, Season.Storm })
-                {
-                    int defaultTotal = defaultTotals[season];
-                    int requestedPositive = Mathf.Clamp(
-                        _seasonTraitCounts.GetPositive(season), 0, defaultTotal);
-                    int negative = defaultTotal - requestedPositive;
-
-                    // Rebuild both pools from the biome data for this season only. This
-                    // bypasses DifficultyModel counts and difficultyBudget deliberately:
-                    // the configured counts define the split, not the global budget.
-                    List<SeasonalEffect> positiveCandidates =
-                        BuildSeasonCandidates(seasons, season, true);
-                    List<SeasonalEffect> negativeCandidates =
-                        BuildSeasonCandidates(seasons, season, false);
-
-                    result.AddRange(positiveCandidates.ShuffleToNew(rng).Take(requestedPositive));
-                    result.AddRange(negativeCandidates.ShuffleToNew(rng).Take(negative));
-                }
+                // Pools come from the biome data, not from the baseline. One pool each for
+                // the only two controllable categories; selection never duplicates a
+                // retained baseline effect or a previously selected one.
+                AddUniqueCandidates(
+                    retained,
+                    reservedNames,
+                    BuildSeasonCandidates(seasons, Season.Drizzle, true),
+                    _seasonTraitCounts.DrizzlePositive,
+                    rng);
+                AddUniqueCandidates(
+                    retained,
+                    reservedNames,
+                    BuildSeasonCandidates(seasons, Season.Storm, false),
+                    _seasonTraitCounts.StormNegative,
+                    rng);
 
                 if (staticEffect != null)
-                    result.Add(staticEffect);
+                    retained.Add(staticEffect);
 
-                __result = result;
+                __result = retained;
             }
             catch (Exception ex)
             {
                 // Leave the game's baseline __result untouched if anything unexpected
                 // happens instead of breaking seasonal effect generation.
                 WriteLog($"Failed applying per-season seasonal trait counts: {ex}");
+            }
+        }
+
+        // Draws exactly count effects (or all eligible ones if fewer) without replacement.
+        // Names already retained by the baseline, and names picked from earlier pools, are
+        // skipped via reservedNames so the final list stays unique.
+        private static void AddUniqueCandidates(
+            List<SeasonalEffect> destination,
+            HashSet<string> reservedNames,
+            List<SeasonalEffect> candidates,
+            int count,
+            System.Random rng)
+        {
+            if (count <= 0 || candidates == null || candidates.Count == 0)
+                return;
+
+            int added = 0;
+            foreach (SeasonalEffect candidate in candidates.ShuffleToNew(rng))
+            {
+                if (added >= count)
+                    break;
+                if (candidate == null || string.IsNullOrEmpty(candidate.name))
+                    continue;
+                if (!reservedNames.Add(candidate.name))
+                    continue;
+
+                destination.Add(candidate);
+                added++;
             }
         }
 

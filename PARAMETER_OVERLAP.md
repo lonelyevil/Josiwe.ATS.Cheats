@@ -32,7 +32,7 @@ The three season-length pairs are the closest cases to direct duplication. If th
 | `WildcardBlueprints` ↔ `BlueprintsMultiplier` ↔ `Prestige_12_Amount` | These are related but not duplicates: they respectively control wildcard replacement, the initial wildcard-pick count, and normal blueprint reward options. |
 | `Newcomers / Extra villagers per group` ↔ `newcommersGoodsRate` | Extra villagers can indirectly affect goods distribution, but one primarily controls population while the other directly scales goods. |
 | `globalSpeedFactor` ↔ `roadsSpeedFactor` / `offroadSpeedFacotr` | This is an intentional global-plus-conditional design. It allows global movement changes or independent road/off-road changes and should not be merged. |
-| Season Traits Negative count ↔ `Hostility / Ignore negative effect hostility` | One controls how many Negative traits are generated; the other suppresses Hostility produced by negative effects without removing the traits. |
+| `Season Traits / Storm negative` ↔ `Hostility / Ignore negative effect hostility` | One controls how many Storm Negative traits are generated; the other suppresses Hostility produced by negative effects without removing the traits. |
 
 ## Features without significant duplication
 
@@ -43,7 +43,7 @@ The following controls currently have distinct purposes:
 - `Newcomers / Extra villagers per group`
 - `Embark / Goods amount multiplier`
 - `Hostility / Ignore negative effect hostility`
-- The three per-season Positive allocations in `Season Traits`
+- The Drizzle Positive and Storm Negative allocations in `Season Traits`
 - `InfiniteCornerstoneRerolls`
 - `EnableAllBuildingsMoving`
 

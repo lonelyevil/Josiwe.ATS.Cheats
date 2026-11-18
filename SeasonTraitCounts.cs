@@ -1,18 +1,18 @@
-using System.Collections.Generic;
 using BepInEx.Configuration;
-using Eremite.Model;
 
 namespace Josiwe.ATS.Cheats
 {
-    // Configures only the positive seasonal trait count for each season. Negative traits are
-    // derived from the season's vanilla total, so both pools always add up to that total.
+    // Configured counts for the two seasonal trait categories this mod controls:
+    // Drizzle positive effects and Storm negative effects. Both categories are picked
+    // fresh at settlement generation; every other season/category keeps its vanilla
+    // effects. Counts are exact, capped only by available unique candidates.
     internal sealed class SeasonTraitCounts
     {
         internal const string SectionName = "Season Traits";
 
         private readonly ConfigEntry<bool> m_Enabled;
-        private readonly Dictionary<Season, ConfigEntry<int>> m_Positives =
-            new Dictionary<Season, ConfigEntry<int>>();
+        private readonly ConfigEntry<int> m_DrizzlePositive;
+        private readonly ConfigEntry<int> m_StormNegative;
 
         internal SeasonTraitCounts(ConfigFile config)
         {
@@ -21,15 +21,26 @@ namespace Josiwe.ATS.Cheats
                 "Enable per-season counts",
                 false,
                 new ConfigDescription(
-                    "Replaces seasonal effect generation with the per-season positive counts below. Negative traits are the season's normal total minus this positive count. Off keeps the game's normal seasonal effect generation.",
+                    "Replaces the Drizzle positive and Storm negative seasonal effects with the configured counts when a settlement's seasonal effects are generated. Every other seasonal effect keeps the game's normal selection. Off keeps the game's normal seasonal effect generation.",
                     null));
 
-            // Default 1 positive per season; that season's remaining baseline traits stay
-            // negative. A range and no percent display makes ConfigurationManager draw a
-            // slider with a text box.
-            AddPositive(config, Season.Drizzle, "Drizzle positive");
-            AddPositive(config, Season.Clearance, "Clearance positive");
-            AddPositive(config, Season.Storm, "Storm positive");
+            // Default 1 keeps a single effect per controllable category. A range and no
+            // percent display makes ConfigurationManager draw a slider with a text box.
+            m_DrizzlePositive = config.Bind(
+                SectionName,
+                "Drizzle positive",
+                1,
+                new ConfigDescription(
+                    "Number of positive seasonal effects for Drizzle while per-season counts are enabled. Values above the number of eligible candidates simply yield all of them.",
+                    new AcceptableValueRange<int>(0, 5)));
+
+            m_StormNegative = config.Bind(
+                SectionName,
+                "Storm negative",
+                1,
+                new ConfigDescription(
+                    "Number of negative seasonal effects for Storm while per-season counts are enabled. Values above the number of eligible candidates simply yield all of them.",
+                    new AcceptableValueRange<int>(0, 5)));
         }
 
         internal bool Enabled
@@ -37,22 +48,14 @@ namespace Josiwe.ATS.Cheats
             get { return m_Enabled.Value; }
         }
 
-        internal int GetPositive(Season season)
+        internal int DrizzlePositive
         {
-            return m_Positives.TryGetValue(season, out ConfigEntry<int> entry)
-                       ? entry.Value
-                       : 0;
+            get { return m_DrizzlePositive.Value; }
         }
 
-        private void AddPositive(ConfigFile config, Season season, string key)
+        internal int StormNegative
         {
-            m_Positives[season] = config.Bind(
-                SectionName,
-                key,
-                1,
-                new ConfigDescription(
-                    $"Positive seasonal traits for {season} while per-season counts are enabled. The remaining traits for that season become negative ones. Values above the season's normal total are clamped; missing candidates simply yield fewer traits.",
-                    new AcceptableValueRange<int>(0, 10)));
+            get { return m_StormNegative.Value; }
         }
     }
 }
