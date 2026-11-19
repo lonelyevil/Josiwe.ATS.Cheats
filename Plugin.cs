@@ -39,6 +39,7 @@ namespace Josiwe.ATS.Cheats
         private static ConfigEntry<int> _traderMinimumPerks = null;
         private static ConfigEntry<float> _traderGoodsAmountMultiplier = null;
         private static ConfigEntry<bool> _traderGuaranteeWildcard = null;
+        private static ConfigEntry<bool> _traderOfferAllGoods = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -1047,6 +1048,23 @@ namespace Josiwe.ATS.Cheats
         [HarmonyPostfix]
         private static void GetOfferedGoods_PostPatch(TraderModel trader, ref Good[] __result)
         {
+            if (_traderOfferAllGoods != null && _traderOfferAllGoods.Value)
+            {
+                if (trader == null)
+                    return;
+                List<Good> allGoods = (trader.offeredGoods ?? new GoodRefWeight[0])
+                    .Where(entry => entry != null && entry.good != null)
+                    .Select(entry => entry.ToGood())
+                    .ToList();
+
+                // Match the original presentation: random pool sorted, guaranteed goods first.
+                allGoods.Sort(Serviceable.GoodsService.GoodsComparer);
+                if (trader.guaranteedOfferedGoods != null)
+                    allGoods.InsertRange(0, trader.guaranteedOfferedGoods.ToGoodsList());
+
+                __result = allGoods.ToArray();
+            }
+
             if (__result == null)
                 return;
 
@@ -1603,6 +1621,13 @@ namespace Josiwe.ATS.Cheats
                 false,
                 new ConfigDescription(
                     "Guarantees one eligible wildcard perk in newly created trader visits when the current merchandise contains one. Replaces a non-wildcard selection instead of increasing the existing count; minimum perk top-up runs afterwards. Off preserves vanilla perk selection."));
+
+            _traderOfferAllGoods = Config.Bind(
+                "Trader",
+                "Include all offered goods",
+                false,
+                new ConfigDescription(
+                    "Includes every entry in the trader's offeredGoods pool plus all guaranteedOfferedGoods in newly created visits. The goods amount multiplier still applies afterward. Off preserves the original random subset."));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.
