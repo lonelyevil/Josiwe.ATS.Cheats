@@ -894,9 +894,9 @@ namespace Josiwe.ATS.Cheats
         #endregion
 
         #region Trader Mods
-        // ForceArrival() performs the actual refresh. PayForceArrivalPrice() then adds
-        // impatience and increments the usage counter. Keep the counter/cost progression,
-        // but omit only the reputation-penalty call when this cheat is enabled.
+        // ForceArrival() performs the actual refresh. PayForceArrivalPrice() normally adds
+        // impatience and increments the usage counter. Keep the counter for statistics,
+        // omit the penalty, and keep repeated use from escalating the displayed price.
         [HarmonyPatch(typeof(TradeService), nameof(TradeService.PayForceArrivalPrice))]
         [HarmonyPrefix]
         private static bool PayForceArrivalPrice_PrePatch(TradeService __instance)
@@ -909,6 +909,16 @@ namespace Josiwe.ATS.Cheats
 
             __instance.State.forceArrivalUsages++;
             return false;
+        }
+
+        [HarmonyPatch(typeof(TradeService), nameof(TradeService.GetForceArrivalPrice))]
+        [HarmonyPostfix]
+        private static void GetForceArrivalPrice_PostPatch(TradeService __instance, ref float __result)
+        {
+            if (_traderRefreshNoImpatience == null || !_traderRefreshNoImpatience.Value)
+                return;
+
+            __result = __instance.Config.forceCost + Serviceable.StateService.Effects.bonusForceTraderPrice;
         }
         #endregion
 
@@ -1428,7 +1438,7 @@ namespace Josiwe.ATS.Cheats
                 "Manual refresh no impatience",
                 false,
                 new ConfigDescription(
-                    "Prevents manual forced trader arrival from increasing the Queen's impatience. The trader still arrives through the normal ForceArrival path, and the usage counter and future force-arrival prices still increase. Off restores the vanilla impatience penalty."));
+                    "Prevents manual forced trader arrival from increasing the Queen's impatience and stops repeated use from escalating its impatience price. The trader still arrives normally, the usage counter is retained for statistics, and the displayed price stays at the base value plus any current bonus. Off restores vanilla pricing and impatience penalties."));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.

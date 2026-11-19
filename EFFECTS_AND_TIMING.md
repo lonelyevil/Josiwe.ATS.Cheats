@@ -24,37 +24,37 @@ Changing a value in the F1 ConfigurationManager window updates the mod configura
 
 | Setting | Effect | When it takes effect |
 |---|---|---|
-| `ZoomMultiplier` | Changes maximum zoom-out and adjusts zoom smoothing. | **Next `CameraController.SetUp`**, normally a map/scene load, reload, or new settlement. Not live for an already initialized camera. |
+| `ZoomMultiplier` | Higher values increase maximum zoom-out and zoom speed; lower values reduce them. There is no enforced range. | **Next `CameraController.SetUp`**, normally a map/scene load, reload, or new settlement. Not live for an already initialized camera. |
 | `AllRacesInWorldMap` | Replaces vanilla revealed-race generation with the mod's random 1–4 generation path. | **Next caravan generation** on the world map. Existing caravans are unchanged. |
-| `BonusPreparationPoints` (`0–100`) | Adds the value to the original bonus preparation points. Base points and difficulty penalties remain intact. | **Next embark/preparation-point calculation**, normally when the embark screen reads it. |
-| `Embark / Goods amount multiplier` (`1–50`) | Multiplies the original embark-goods result after MetaPerks bonuses. Affects caravan goods and embark-bonus goods. | **Next embark-goods generation.** Existing settlement inventories are unchanged. |
+| `BonusPreparationPoints` (`0–100`) | Higher values grant more extra preparation points; lower values grant fewer. `0` preserves the original bonus. | **Next embark/preparation-point calculation**, normally when the embark screen reads it. |
+| `Embark / Goods amount multiplier` (`1–50`) | Higher values produce more caravan and embark-bonus goods after MetaPerks; lower values produce fewer. `1` is vanilla. | **Next embark-goods generation.** Existing settlement inventories are unchanged. |
 
 ## Reputation, impatience, blueprints, and cornerstones
 
 | Setting | Effect | When it takes effect |
 |---|---|---|
 | `WildcardBlueprints` | Replaces the initial building picks with wildcard picks and replaces future reputation-threshold blueprint rewards with wildcard picks. | Initial replacement is **new settlement only**. Future threshold rewards change at the **next reputation reward generation**. Existing picks are not replaced. |
-| `BlueprintsMultiplier` | Sets the number of wildcard picks granted by the initial replacement. | **New settlement only**, when initial reputation picks are prepared. It is not the count for every later threshold reward. |
+| `BlueprintsMultiplier` | Higher values grant more initial wildcard picks; lower values grant fewer. `0` grants none when `WildcardBlueprints` is enabled. | **New settlement only**, when initial reputation picks are prepared. It is not the count for every later threshold reward. |
 | `InfiniteCornerstoneRerolls` | Sets the current cornerstone reroll count to 99 whenever the game reads it. | **Next reroll-count read**, effectively live for UI and reroll checks. This writes `CornerstonesState.rerollsLeft`, so it can enter save data. |
-| `ResolveMultiplier` | Multiplies resolve-generated reputation before passing it to the reputation service. | **Next resolve reputation gain.** Resolve gains are also processed by `ReputationMutiplier`, so the two settings can compound. |
-| `ReputationMutiplier` | Multiplies reputation additions and applies the configured cap/stopgap behavior. The spelling is a shipped compatibility key. | **Next reputation addition.** |
-| `ImpatienceMultiplier` | Multiplies impatience additions and applies the configured cap/stopgap behavior. | **Next impatience addition.** |
-| `ReputationStopgap` | Caps resolve-based reputation below the win threshold; orders and map events can still win. | **Next reputation calculation/addition.** |
-| `ImpatienceStopgap` | Caps impatience below the loss threshold. | **Next impatience calculation/addition.** |
-| `MoarMaxReputation` | Adds to the reputation required to win. | **Next win-threshold read**, such as UI or win checks. |
-| `MoarMaxImpatience` | Adds to the impatience threshold that causes a loss. | **Next loss-threshold read.** |
+| `ResolveMultiplier` | Higher values increase Resolve-derived reputation; values between `0` and `1` reduce it; `0` gives none. Negative values preserve the original Resolve calculation. | **Next resolve reputation gain.** Resolve gains are also processed by `ReputationMutiplier`, so the two settings can compound. |
+| `ReputationMutiplier` | Higher values increase each reputation addition; values between `0` and `1` reduce it; `0` prevents added reputation. Negative values preserve vanilla only when no stopgap is active. | **Next reputation addition.** |
+| `ImpatienceMultiplier` | Higher values increase impatience gain; values between `0` and `1` reduce it; `0` prevents additions. Negative values preserve vanilla only when no stopgap is active. | **Next impatience addition.** |
+| `ReputationStopgap` | Higher values stop Resolve reputation farther below the win threshold; lower values leave a smaller gap. `0` applies no extra stopgap. | **Next reputation calculation/addition.** |
+| `ImpatienceStopgap` | Higher values stop impatience farther below the loss threshold; lower values leave a smaller gap. `0` applies no extra stopgap. | **Next impatience calculation/addition.** |
+| `MoarMaxReputation` | Positive values require more reputation to win, making victory slower; negative values require less. `0` preserves the original threshold. | **Next win-threshold read**, such as UI or win checks. |
+| `MoarMaxImpatience` | Positive values allow more impatience before losing; negative values allow less and make losing easier. `0` preserves the original threshold. | **Next loss-threshold read.** |
 | `MoarSeasonRewards` | Raises cornerstone option generation toward four options and removes the normal exclusion list, allowing repeats. | **Next cornerstone reward generation.** It also increases persistent meta `bonusSeasonRewardsAmount`; disabling the setting does not revert that profile-side effect. |
-| `CornerstonePicksPerSeason` | Generates additional cornerstone picks so the original plus added picks reach the requested count. | **Next seasonal cornerstone-pick generation.** Existing waiting picks remain. |
-| `CashRewardMultiplier` | Multiplies goods received for declining a cornerstone. `0` means no decline reward. | **Next cornerstone decline.** |
+| `CornerstonePicksPerSeason` | Higher values create more separate cornerstone picks per season; lower values create fewer. Values `1` or below preserve vanilla generation. | **Next seasonal cornerstone-pick generation.** Existing waiting picks remain. |
+| `CashRewardMultiplier` | Higher values give more goods for declining a cornerstone; lower values give fewer. `0` gives nothing; negative values preserve vanilla. | **Next cornerstone decline.** |
 | `EnableAllBuildingsMoving` | Enables moving most buildings through the game controller hook. | **Next `GameController.StartGame`**, normally a new game or reload. Enabling mid-game is not retroactive. Disabling does not revoke an already enabled mover state. |
 
 ## Season length settings
 
 | Setting | Effect | When it takes effect |
 |---|---|---|
-| `DrizzleLengthMultiplier` | Multiplies the original Drizzle duration rate. | **Next season-duration calculation.** Assume the current season keeps its established end time; the next transition is the safe expectation. |
-| `ClearanceLengthMultiplier` | Same for Clearance. | Same as above. |
-| `StormLengthMultiplier` | Same for Storm. | Same as above. |
+| `DrizzleLengthMultiplier` | Values above `1` make Drizzle longer; values between `0` and `1` make it shorter. `0` or below preserves the original duration rate. | **Next season-duration calculation.** Assume the current season keeps its established end time; the next transition is the safe expectation. |
+| `ClearanceLengthMultiplier` | Values above `1` make Clearance longer; values between `0` and `1` make it shorter. `0` or below preserves the original duration rate. | Same as above. |
+| `StormLengthMultiplier` | Values above `1` make Storm longer; values between `0` and `1` make it shorter. `0` or below preserves the original duration rate. | Same as above. |
 
 The separate EffectsState season controls below are applied at a different layer. They multiply the final duration after these CheatConfig season multipliers, rather than replacing them.
 
@@ -62,22 +62,24 @@ The separate EffectsState season controls below are applied at a different layer
 
 These settings modify ascension effect models while initial effects are being built for embark. They are **next embark / new settlement** settings. They do not retroactively rewrite an active settlement, and loading an existing save does not rerun the generation path. Custom-game and tutorial branches can intentionally bypass parts of this logic.
 
-| Setting | Modified effect |
+The table below describes the direction when the mod replaces the modifier amount. Guard values matter: negative values leave the original Prestige effect unchanged for Prestige 2, 4, 5, 6, 7, 8, 13, 14, 15, and 17. Positive values leave the original effect unchanged for Prestige 9, 10, 12, and 18. In those guard branches, the game keeps its original modifier instead of applying a stronger or weaker custom amount.
+
+| Setting | Effect of increasing or decreasing the custom value |
 |---|---|
-| `Prestige_2_Amount` | Storm-season length modifier. |
-| `Prestige_4_Amount` | Blueprint reroll cost. |
-| `Prestige_5_Amount` | Villager leaving rate. |
-| `Prestige_6_Amount` | Construction material cost. |
-| `Prestige_7_Amount` | Chance of extra food consumption from Parasites. |
-| `Prestige_8_Amount` | Chance of extra luxury consumption. |
-| `Prestige_9_Amount` | Relic/glade-event working rate. |
-| `Prestige_10_Amount` | Global trader sell-price modifier. |
-| `Prestige_12_Amount` | Initial blueprint reward options; this is handled in the early pre-game modifier pass. |
-| `Prestige_13_Amount` | Cornerstone reward options. |
-| `Prestige_14_Amount` | Impatience reduction gained per reputation. |
-| `Prestige_15_Amount` | Global resolve/reputation threshold increase. |
-| `Prestige_17_Amount` | Hunger stacks applied when villagers do not eat. |
-| `Prestige_18_Amount` | Hearth sacrifice time/consumption modifier. |
+| `Prestige_2_Amount` | Higher nonnegative values increase the Storm-length penalty; lower values reduce it. `0` neutralizes the modifier. |
+| `Prestige_4_Amount` | Higher nonnegative values add more Amber to blueprint rerolls; lower values add less. `0` removes the extra cost. |
+| `Prestige_5_Amount` | Higher nonnegative values make villagers leave faster; lower values make them leave more slowly. `0` neutralizes the modifier. |
+| `Prestige_6_Amount` | Higher nonnegative values require more construction materials; lower values require fewer. `0` neutralizes the modifier. |
+| `Prestige_7_Amount` | Higher nonnegative values increase the chance of extra food consumption; lower values reduce it. `0` removes the extra chance. |
+| `Prestige_8_Amount` | Higher nonnegative values increase the chance of extra luxury consumption; lower values reduce it. `0` removes the extra chance. |
+| `Prestige_9_Amount` | More negative values make relic work slower and strengthen the penalty; values closer to `0` weaken it. `0` neutralizes the modifier. |
+| `Prestige_10_Amount` | More negative values lower trader sell prices further; values closer to `0` reduce the penalty. `0` neutralizes the modifier. |
+| `Prestige_12_Amount` | More negative values provide fewer blueprint options; values closer to `0` provide more. `0` neutralizes the modifier. This is handled in the early pre-game pass. |
+| `Prestige_13_Amount` | Higher nonnegative values directly add more Cornerstone options, reducing or reversing the penalty. `0` adds no options; negative values keep the original Prestige penalty. |
+| `Prestige_14_Amount` | Higher nonnegative values reduce impatience reduction per reputation and strengthen the penalty; lower values weaken it. `0` neutralizes the modifier. |
+| `Prestige_15_Amount` | Higher nonnegative values increase the Resolve threshold penalty; lower values reduce it. `0` neutralizes the modifier. |
+| `Prestige_17_Amount` | Higher nonnegative values add more hunger stacks; lower values add fewer. `0` leaves the base single-stack behavior. |
+| `Prestige_18_Amount` | More negative values make hearth sacrifice consumption faster; values closer to `0` make it slower and weaken the penalty. `0` neutralizes the modifier. |
 
 ## EffectsState multipliers
 
@@ -87,46 +89,46 @@ All 26 controls are independent range entries from `0` to `1000`, with `1` as ne
 
 | Setting | Effect | When it takes effect |
 |---|---|---|
-| `plantingSpeed` | Multiplies farm planting rate. | **Next planting-rate read**, normally a planting action/update. |
-| `harvestingSpeed` | Multiplies farm harvesting rate. | **Next harvesting-rate read.** |
-| `fuelConsumptionSpeed` | Multiplies fuel consumption speed; higher values burn fuel faster. | **Next fuel/burning-time calculation.** |
-| `hearthSacraficeTimeRate` | Multiplies the hearth sacrifice rate. Higher values make sacrifice consumption slower in the original formula. | **Next hearth-sacrifice rate read.** |
-| `constructionSpeed` | Multiplies construction progress. | **Next construction-progress update.** |
-| `constructionCost` | Multiplies calculated construction cost. | **Next cost calculation/placement.** Already placed construction may retain previously calculated costs. |
-| `relicsWorkingTimeRate` | Multiplies relic/glade-event working speed. | **Next relic working-time calculation.** |
-| `grassAmountRatio` | Multiplies and rounds generated grass amount. | **Next grass calculation**, commonly map/glade generation rather than continuous terrain regeneration. |
-| `drizzleLength` | Multiplies final Drizzle duration. | **Next duration calculation**; assume the next season transition for a running schedule. |
-| `clearanceleLength` | Multiplies final Clearance duration. The spelling is from the game API. | Same as above. |
-| `stormLength` | Multiplies final Storm duration. | Same as above. |
-| `resolveToReputationRatio` | Multiplies resolve-to-reputation conversion. | **Next resolve reputation calculation.** |
-| `leavingRate` | Multiplies the villager leaving rate. | **Next leaving check/calculation.** |
-| `newcommersGoodsRate` | Multiplies goods generated for newcomer groups. | **Next newcomer-goods generation.** Existing waiting groups are unchanged. |
-| `traderGlobalSellPriceRate` | Multiplies trader sell values and the displayed global price ratio. | **Next trade-price calculation/read.** |
-| `tradeRoutesSpeed` | Multiplies trade-route speed. | **Next route speed or travel-time calculation.** |
-| `villagersBreakTimeRate` | Multiplies villager break duration; higher values mean longer breaks. | **Next break-time calculation/new break.** |
-| `globalSpeedFactor` | Multiplies global actor movement speed. | **Next actor-speed read.** |
-| `roadsSpeedFactor` | Additionally multiplies on-road actor speed. | **Next on-road actor-speed read.** |
-| `offroadSpeedFacotr` | Additionally multiplies off-road actor speed. The spelling is from the game API. | **Next off-road actor-speed read.** |
-| `resolveNegativeChangeRate` | Multiplies negative Resolve change per second. | **Next Resolve-decay calculation.** |
-| `tradersIntervalRate` | Multiplies trader arrival/travel interval speed. | **Next trader scheduling or time-left calculation.** |
-| `newcomersIntervalRate` | Multiplies newcomer arrival interval speed. | **Next newcomer scheduling/progress calculation.** |
-| `enginesBlightRate` | Multiplies Rainpunk engine blight/cyst efficiency. | **Next engine water-per-cyst or blight-rate calculation.** |
-| `newYearEffectMultiplayer` | Multiplies the number of New Year effect iterations. The field is changed only for the original method call and restored by a finalizer. | **Next New Year event only.** No effect merely by opening or closing the panel. |
-| `hungerMultiplier` | Multiplies hunger applications; `0` suppresses them. | **Next hunger application/update.** |
+| `plantingSpeed` | Higher values plant faster; lower values plant more slowly. `0` stops planting progress. | **Next planting-rate read**, normally a planting action/update. |
+| `harvestingSpeed` | Higher values harvest faster; lower values harvest more slowly. `0` stops harvesting progress. | **Next harvesting-rate read.** |
+| `fuelConsumptionSpeed` | Higher values burn fuel faster and shorten burning time; lower values do the opposite. `0` produces an infinite/invalid burning-time calculation rather than a neutral result. | **Next fuel/burning-time calculation.** |
+| `hearthSacraficeTimeRate` | Higher values slow sacrifice consumption; lower positive values accelerate it. `0` is degenerate because the original formula divides by this rate. | **Next hearth-sacrifice rate read.** |
+| `constructionSpeed` | Higher values build faster; lower values build more slowly. `0` stops construction progress. | **Next construction-progress update.** |
+| `constructionCost` | Higher values require more materials; lower values require fewer. `0` makes construction free. | **Next cost calculation/placement.** Already placed construction may retain previously calculated costs. |
+| `relicsWorkingTimeRate` | Higher values finish relic work faster; lower values make it slower. The original min/max clamp still applies. | **Next relic working-time calculation.** |
+| `grassAmountRatio` | Higher values generate more grass; lower values generate less. `0` generates none. | **Next grass calculation**, commonly map/glade generation rather than continuous terrain regeneration. |
+| `drizzleLength` | Higher values make Drizzle longer; lower values make it shorter. `0` requests a zero-length season. | **Next duration calculation**; assume the next season transition for a running schedule. |
+| `clearanceleLength` | Higher values make Clearance longer; lower values make it shorter. `0` requests a zero-length season. The spelling is from the game API. | Same as above. |
+| `stormLength` | Higher values make Storm longer; lower values make it shorter. `0` requests a zero-length season. | Same as above. |
+| `resolveToReputationRatio` | Higher values produce more reputation from Resolve; lower values produce less. `0` produces none. | **Next resolve reputation calculation.** |
+| `leavingRate` | Higher values make villagers leave faster; lower values make them leave more slowly. `0` prevents Resolve-based leaving. | **Next leaving check/calculation.** |
+| `newcommersGoodsRate` | Higher values generate more newcomer goods; lower values generate fewer. `0` generates none. | **Next newcomer-goods generation.** Existing waiting groups are unchanged. |
+| `traderGlobalSellPriceRate` | Higher values increase sale value and currency received; lower values reduce it. `0` makes goods worthless to the trader. | **Next trade-price calculation/read.** |
+| `tradeRoutesSpeed` | Higher values complete routes faster; lower values slow them. `0` prevents route completion. | **Next route speed or travel-time calculation.** |
+| `villagersBreakTimeRate` | Higher values lengthen breaks and slow the consumption cycle; lower values shorten them. `0` requests zero-length breaks. | **Next break-time calculation/new break.** |
+| `globalSpeedFactor` | Higher values increase global movement speed; lower values reduce it. `0` can stop movement. | **Next actor-speed read.** |
+| `roadsSpeedFactor` | Higher values increase on-road speed; lower values reduce it. `0` stops on-road movement when the other factor is nonzero. | **Next on-road actor-speed read.** |
+| `offroadSpeedFacotr` | Higher values increase off-road speed; lower values reduce it. `0` stops off-road movement when the other factor is nonzero. The spelling is from the game API. | **Next off-road actor-speed read.** |
+| `resolveNegativeChangeRate` | Higher values increase negative Resolve change; lower values reduce it. `0` prevents Resolve decay from this calculation. | **Next Resolve-decay calculation.** |
+| `tradersIntervalRate` | Higher values make traders arrive sooner; lower values delay them. `0` can prevent trader arrival/progress. | **Next trader scheduling or time-left calculation.** |
+| `newcomersIntervalRate` | Higher values make newcomers arrive more frequently; lower values make them less frequent. `0` stops arrival progress. | **Next newcomer scheduling/progress calculation.** |
+| `enginesBlightRate` | Higher values require less water per cyst and accelerate blight production; lower values require more. `0` effectively prevents cyst production. | **Next engine water-per-cyst or blight-rate calculation.** |
+| `newYearEffectMultiplayer` | Higher integers run more New Year effect iterations; lower integers run fewer. `0` suppresses the New Year effect. The field is restored after the original call. | **Next New Year event only.** No effect merely by opening or closing the panel. |
+| `hungerMultiplier` | Higher integers apply more hunger stacks; lower integers apply fewer. `0` suppresses hunger application. | **Next hunger application/update.** |
 
-Setting a season-duration multiplier to `0` can request a zero-length season and should be treated as a degenerate, potentially disruptive value.
+Setting a season-duration multiplier to `0` can request a zero-length season and should be treated as a degenerate, potentially disruptive value. More generally, `0` is not a universal “disable safely” value: it can also create free construction, stop movement or arrivals, or produce division-by-zero behavior in fuel and hearth formulas, as noted in each row.
 
 ## Standalone gameplay controls
 
 | Setting | Effect | When it takes effect |
 |---|---|---|
-| `Farm / Square area radius` (`0–10`) | Overrides both farm-area axes with the same margin. `0` preserves the model work area plus MetaPerks. Updates visual bounds, usable-field cache, and placement overlay. | **Immediately recalculates active farms when changed.** New placements use the current value; rebuilding the farm is not required. An already visible overlay may need to be redrawn. |
-| `House / Extra places per house` (`0–20`) | Adds real capacity to every house while keeping total places, remaining places, move-in checks, and previews consistent. | **Next capacity/UI/move-in read.** Existing houses do not need to be rebuilt. |
-| `Newcomers / Extra villagers per group` (`0–20`) | Adds villagers after the original random base, year scaling, and existing bonuses. Race assignment and goods setup still run normally. | **Next newly generated group.** Already waiting groups are unchanged. |
+| `Farm / Square area radius` (`0–10`) | Higher values create a larger square work area; lower values create a smaller one. `0` preserves the model work area plus MetaPerks. Updates visual bounds, usable-field cache, and placement overlay. | **Immediately recalculates active farms when changed.** New placements use the current value; rebuilding the farm is not required. An already visible overlay may need to be redrawn. |
+| `House / Extra places per house` (`0–20`) | Higher values add more real housing capacity; lower values add less. `0` preserves vanilla capacity. Total places, remaining places, move-in checks, and previews stay consistent. | **Next capacity/UI/move-in read.** Existing houses do not need to be rebuilt. |
+| `Newcomers / Extra villagers per group` (`0–20`) | Higher values add more villagers after the original random base, year scaling, and bonuses; lower values add fewer. `0` preserves vanilla amounts. | **Next newly generated group.** Already waiting groups are unchanged. |
 | `Hostility / Ignore negative effect hostility` | Skips both application and removal of `HostilitySource.EffectsNegative`. Existing points from that source are cleared and total Hostility is synchronized. Other sources and positive effects continue normally. | **Live for future add/remove operations.** Existing points are cleared **when enabled** and **when the Hostility monitor is set up**, including game load/new game. |
-| `Season Traits / Enable per-season counts` (off by default), `Drizzle positive`, and `Storm negative` (`0–5`, default `1`) | Replaces only the Drizzle Positive and Storm Negative baseline categories with exact seeded selections. Counts are not clamped to baseline totals, so Drizzle Positive can increase up to five when candidates exist. Other regular effects and Static traits are preserved. | **New settlement seasonal-effect generation only.** Loaded saves skip regeneration, so changing this mid-settlement has no effect on that save. |
+| `Season Traits / Enable per-season counts` (off by default), `Drizzle positive`, and `Storm negative` (`0–5`, default `1`) | Higher Drizzle Positive values create more positive Drizzle traits and lower values create fewer, with `0` creating none. Higher Storm Negative values create more negative Storm traits and lower values create fewer, with `0` creating none. Selection replaces only those categories; other regular and Static traits are preserved. | **New settlement seasonal-effect generation only.** Loaded saves skip regeneration, so changing this mid-settlement has no effect on that save. |
 | `Embark / Goods amount multiplier` | See the world map/embark table above. | **Next embark-goods generation**, not on reload within an existing settlement. |
-| `Trader / Manual refresh no impatience` | Prevents manual forced trader arrival from adding the Queen's impatience while preserving forced arrival, the usage counter, and future price progression. | **Next manual forced-arrival payment.** No global suppression of impatience from other sources. |
+| `Trader / Manual refresh no impatience` | Prevents manual forced trader arrival from adding the Queen's impatience and stops repeated use from escalating its price. The usage counter is retained for statistics, while the displayed price remains the base value plus any current bonus. | **Next manual forced-arrival payment or price read.** No global suppression of impatience from other sources. |
 
 ## Important interaction and persistence notes
 
