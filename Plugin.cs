@@ -7,6 +7,7 @@ using Eremite.Model;
 using Eremite.Model.Configs;
 using Eremite.Model.Effects;
 using Eremite.Model.State;
+using Eremite.Model.Trade;
 using Eremite.Services;
 using Eremite.Services.Meta;
 using Eremite.Services.World;
@@ -35,6 +36,9 @@ namespace Josiwe.ATS.Cheats
         private static ConfigEntry<bool> _ignoreNegativeEffectHostility = null;
         private static ConfigEntry<int> _embarkGoodsMultiplier = null;
         private static ConfigEntry<bool> _traderRefreshNoImpatience = null;
+        private static ConfigEntry<int> _traderMinimumPerks = null;
+        private static ConfigEntry<float> _traderGoodsAmountMultiplier = null;
+        private static ConfigEntry<bool> _traderGuaranteeWildcard = null;
 
         // The F1 preset selector is not a CheatConfig field; selecting a preset applies it and resets the selector.
         private const string PresetSentinel = "Load preset...";
@@ -920,6 +924,143 @@ namespace Josiwe.ATS.Cheats
 
             __result = __instance.Config.forceCost + Serviceable.StateService.Effects.bonusForceTraderPrice;
         }
+
+        // GetRandomEffects() already selects and price-sorts the normal perks. Optionally
+        // replace one with a wildcard, top up without trimming, then restore price order.
+        [HarmonyPatch(typeof(TradeService), "GetRandomEffects")]
+        [HarmonyPostfix]
+        private static void GetRandomEffects_PostPatch(
+            TradeService __instance, TraderModel trader, ref List<TraderEffectState> __result)
+        {
+            if (__result == null || trader == null)
+                return;
+
+            int minimum = _traderMinimumPerks?.Value ?? 1;
+            bool guaranteeWildcard = _traderGuaranteeWildcard?.Value ?? false;
+            if (!guaranteeWildcard && __result.Count >= minimum)
+                return;
+
+            try
+            {
+                var result = new List<TraderEffectState>(__result);
+                EffectDrop[] source = __instance.GetMerchandiseSource(trader) ?? new EffectDrop[0];
+                var names = new HashSet<string>(
+                    result.Where(state => state != null).Select(state => state.effect));
+                bool changed = false;
+
+                if (guaranteeWildcard && !result.Any(IsWildcardTraderEffect))
+                {
+                    EffectModel wildcard = source
+                        .Where(drop => drop != null && drop.reward != null)
+                        .Select(drop => drop.reward)
+                        .FirstOrDefault(effect => effect is WildcardPickEffectModel
+                                                  && effect.CanBeDrawn()
+                                                  && !names.Contains(effect.Name));
+
+                    if (wildcard == null)
+                    {
+                        WriteLog("Guaranteed trader wildcard requested, but no eligible wildcard is available.");
+                    }
+                    else
+                    {
+                        var wildcardState = new TraderEffectState { effect = wildcard.Name };
+                        if (result.Count == 0)
+                        {
+                            result.Add(wildcardState);
+                            names.Add(wildcard.Name);
+                            changed = true;
+                        }
+                        else
+                        {
+                            int replaceIndex = result.FindIndex(state => !IsWildcardTraderEffect(state));
+                            if (replaceIndex >= 0)
+                            {
+                                names.Remove(result[replaceIndex]?.effect);
+                                result[replaceIndex] = wildcardState;
+                                names.Add(wildcard.Name);
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+
+                int missing = minimum - result.Count;
+                if (missing > 0)
+                {
+                    // One drop per name keeps the weighted top-up from duplicating perks.
+                    // With wildcard guarantee enabled, do not add a second wildcard here.
+                    List<EffectDrop> candidates = source
+                        .Where(drop => drop != null
+                                       && drop.reward != null
+                                       && drop.reward.CanBeDrawn()
+                                       && !names.Contains(drop.reward.Name)
+                                       && (!guaranteeWildcard
+                                           || !(drop.reward is WildcardPickEffectModel)))
+                        .GroupBy(drop => drop.reward.Name)
+                        .Select(group => group.First())
+                        .ToList();
+
+                    List<EffectModel> additional =
+                        WeightableContainersExtension.GetWeightedList<EffectModel, EffectDrop>(
+                            candidates,
+                            missing,
+                            effect => effect != null
+                                      && effect.CanBeDrawn()
+                                      && !names.Contains(effect.Name),
+                            null);
+
+                    foreach (EffectModel effect in additional)
+                    {
+                        if (effect == null || !names.Add(effect.Name))
+                            continue;
+
+                        result.Add(new TraderEffectState { effect = effect.Name });
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                {
+                    result = result
+                        .OrderBy(state => __instance.GetValueInCurrency(
+                            Serviceable.Settings.GetEffect(state.effect)))
+                        .ToList();
+                }
+
+                __result = result;
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Failed adjusting trader perks: {ex.Message}");
+            }
+        }
+
+        private static bool IsWildcardTraderEffect(TraderEffectState state)
+        {
+            return state != null
+                   && Serviceable.Settings.GetEffect(state.effect) is WildcardPickEffectModel;
+        }
+
+        // CreateVisit() calls this before storing the offer. Scale struct values in place;
+        // the number and variety of Good entries stay exactly as the game generated them.
+        [HarmonyPatch(typeof(TradeService), "GetOfferedGoods")]
+        [HarmonyPostfix]
+        private static void GetOfferedGoods_PostPatch(TraderModel trader, ref Good[] __result)
+        {
+            if (__result == null)
+                return;
+
+            float multiplier = _traderGoodsAmountMultiplier?.Value ?? 1f;
+            if (multiplier == 1f)
+                return;
+
+            for (int i = 0; i < __result.Length; i++)
+            {
+                Good good = __result[i];
+                good.amount = Mathf.Max(0, Mathf.RoundToInt(good.amount * multiplier));
+                __result[i] = good;
+            }
+        }
         #endregion
 
         #region Embark Goods Mods
@@ -1439,6 +1580,29 @@ namespace Josiwe.ATS.Cheats
                 false,
                 new ConfigDescription(
                     "Prevents manual forced trader arrival from increasing the Queen's impatience and stops repeated use from escalating its impatience price. The trader still arrives normally, the usage counter is retained for statistics, and the displayed price stays at the base value plus any current bonus. Off restores vanilla pricing and impatience penalties."));
+
+            _traderMinimumPerks = Config.Bind(
+                "Trader",
+                "Minimum perk count",
+                1,
+                new ConfigDescription(
+                    "Tops up newly created trader visits to at least this many perks when enough eligible merchandise exists. Never trims a larger original selection. 1 normally preserves vanilla traders with their base two perks.",
+                    new AcceptableValueRange<int>(1, 6)));
+
+            _traderGoodsAmountMultiplier = Config.Bind(
+                "Trader",
+                "Goods amount multiplier",
+                1f,
+                new ConfigDescription(
+                    "Multiplies the amount of every good in newly created trader offers, including random and guaranteed goods. Changes amounts only, never the number or variety of offered good types. 1 preserves vanilla amounts.",
+                    new AcceptableValueRange<float>(1f, 10f)));
+
+            _traderGuaranteeWildcard = Config.Bind(
+                "Trader",
+                "Guarantee wildcard perk",
+                false,
+                new ConfigDescription(
+                    "Guarantees one eligible wildcard perk in newly created trader visits when the current merchandise contains one. Replaces a non-wildcard selection instead of increasing the existing count; minimum perk top-up runs afterwards. Off preserves vanilla perk selection."));
         }
 
         // Registers the F1 preset dropdown after the main config exists and before Harmony patching.

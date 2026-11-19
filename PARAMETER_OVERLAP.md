@@ -43,6 +43,7 @@ The following controls currently have distinct purposes:
 - `Newcomers / Extra villagers per group`
 - `Embark / Goods amount multiplier`
 - `Trader / Manual refresh no impatience`
+- `Trader / Minimum perk count`, `Goods amount multiplier`, and `Guarantee wildcard perk`
 - `Hostility / Ignore negative effect hostility`
 - The Drizzle Positive and Storm Negative allocations in `Season Traits`
 - `InfiniteCornerstoneRerolls`
